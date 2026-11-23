@@ -266,6 +266,22 @@ html, body {
 .lan-respawn b { font-size: 34px; color: var(--cyan); text-shadow: 0 0 16px rgba(25, 249, 255, 0.6); }
 .lan-respawn span { color: var(--dim); letter-spacing: 2px; }
 
+.minimap {
+  position: absolute;
+  right: clamp(12px, 2.6vw, 24px);
+  bottom: calc(16px + env(safe-area-inset-bottom));
+  width: 140px;
+  height: 140px;
+  border-radius: 12px;
+  border: 1px solid rgba(90, 140, 255, 0.35);
+  background: rgba(5, 10, 24, 0.72);
+  box-shadow: 0 0 18px rgba(25, 249, 255, 0.14);
+  pointer-events: none;
+}
+@media (max-width: 560px) {
+  .minimap { width: 104px; height: 104px; }
+}
+
 .buff-bar {
   position: absolute;
   top: calc(66px + env(safe-area-inset-top));

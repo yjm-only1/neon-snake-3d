@@ -2,7 +2,7 @@
 import {
   DIFFICULTY_LIST, DIFFICULTIES, ACHIEVEMENTS,
   MP_MODES, MP_MODE_LIST, MP_RHYTHMS, MP_RHYTHM_LIST,
-  AVATARS, PLAYER_COLORS, THEMES, THEME_LIST,
+  AVATARS, PLAYER_COLORS, THEMES, THEME_LIST, FOOD_DEFS,
 } from './config.js';
 
 const NAME_STORAGE_KEY = 'neonSnake3D.name';
@@ -34,7 +34,7 @@ export class UI {
     const ids = [
       'menu', 'diffRow', 'menuStats', 'btnLan', 'btnAchievements', 'btnSettings', 'btnHelp',
       'soloHud', 'hudScore', 'hudBest', 'comboChip', 'comboValue', 'btnPause', 'diffChip',
-      'lanHud', 'lanTimer', 'lanModeChip', 'btnLanLeave', 'lanBoard', 'lanRespawn', 'lanRespawnSec',
+      'lanHud', 'lanTimer', 'lanModeChip', 'btnLanLeave', 'lanBoard', 'lanRespawn', 'lanRespawnSec', 'minimap',
       'buffBar', 'buffShield', 'buffSlow', 'buffDouble', 'buffSlowTime', 'buffSlowBar', 'buffDoubleTime', 'buffDoubleBar',
       'countdownOverlay', 'countdownText',
       'lanOverlay', 'lanConnecting', 'lanUnavailable', 'btnLanUnavailableClose',
@@ -442,6 +442,58 @@ export class UI {
         slowMs: me.buffs.slowMs,
         doubleMs: me.buffs.doubleMs,
       });
+    }
+    this.drawMinimap(snapshot, selfId);
+  }
+
+  drawMinimap(snapshot, selfId) {
+    const canvas = this.el.minimap;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const width = canvas.width;
+    const pad = 8;
+    const grid = snapshot.grid || 56;
+    const scale = (width - pad * 2) / grid;
+    ctx.clearRect(0, 0, width, width);
+    ctx.fillStyle = 'rgba(30, 55, 130, 0.16)';
+    ctx.fillRect(pad, pad, grid * scale, grid * scale);
+    ctx.strokeStyle = 'rgba(79, 123, 255, 0.55)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(pad + 0.5, pad + 0.5, grid * scale - 1, grid * scale - 1);
+
+    const dot = (x, y, color, radius) => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(pad + (x + 0.5) * scale, pad + (y + 0.5) * scale, radius, 0, Math.PI * 2);
+      ctx.fill();
+    };
+
+    let foods = [];
+    if (snapshot.mode === 'lanes') {
+      const me = snapshot.players.find((p) => p.id === selfId);
+      foods = me && me.foods ? me.foods : [];
+    } else {
+      foods = snapshot.foods || [];
+    }
+    for (const food of foods) {
+      const def = FOOD_DEFS[food.type] || FOOD_DEFS.normal;
+      dot(food.x, food.y, def.color, 2.2);
+    }
+
+    for (const player of snapshot.players) {
+      if (!player.alive || !player.segments || player.segments.length === 0) continue;
+      if (snapshot.mode === 'lanes' && player.id !== selfId) continue;
+      const head = player.segments[0];
+      if (player.id === selfId) {
+        ctx.strokeStyle = player.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(pad + (head[0] + 0.5) * scale, pad + (head[1] + 0.5) * scale, 4.5, 0, Math.PI * 2);
+        ctx.stroke();
+        dot(head[0], head[1], '#ffffff', 2.2);
+      } else {
+        dot(head[0], head[1], player.color, 3);
+      }
     }
   }
 

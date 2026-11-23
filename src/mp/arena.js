@@ -643,7 +643,7 @@ export class Arena {
           shieldPhaseMs: Math.round(player.buffs.shieldPhase),
         },
         fruits: player.fruitsEaten,
-        food: !this.mode.shared && player.foods.length > 0 ? this.foodView(player.foods[0]) : null,
+        foods: this.mode.shared ? null : player.foods.map((food) => this.foodView(food)),
       });
     }
     return {

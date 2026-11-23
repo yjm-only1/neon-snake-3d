@@ -443,7 +443,7 @@ function buildLanView() {
   let foods = [];
   const me = snapshot.players.find((p) => p.id === selfId);
   if (lanes) {
-    if (me && me.food) foods = [me.food];
+    if (me && me.foods) foods = me.foods;
   } else {
     foods = snapshot.foods || [];
   }
