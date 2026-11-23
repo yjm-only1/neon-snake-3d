@@ -129,7 +129,7 @@ export const THEMES = {
   neon: {
     id: 'neon', name: '霓虹',
     bgTop: '#0d1440', bgBottom: '#04050d',
-    board: '#0b1228', boardAccent: '#16224a', boardSide: '#070c1c',
+    board: '#0d1734', boardAccent: '#1c2d62', boardSide: '#070c1c',
     grid: '#5a78ff', border: '#4f7bff', glow: '#19f9ff',
     ambient: '#8fa4ff', key: '#ffffff', fill: '#4058ff',
     dust: '#6f8cff',
@@ -137,7 +137,7 @@ export const THEMES = {
   aurora: {
     id: 'aurora', name: '极光',
     bgTop: '#062a2a', bgBottom: '#020b0c',
-    board: '#06201f', boardAccent: '#0d3a34', boardSide: '#041312',
+    board: '#0a2b27', boardAccent: '#14544a', boardSide: '#041312',
     grid: '#37e0c0', border: '#2fd8b0', glow: '#64ffda',
     ambient: '#8fffe0', key: '#f2fffb', fill: '#2fd8b0',
     dust: '#39d98a',
@@ -145,7 +145,7 @@ export const THEMES = {
   magma: {
     id: 'magma', name: '熔岩',
     bgTop: '#2a0d06', bgBottom: '#0b0302',
-    board: '#1e0a08', boardAccent: '#3a140c', boardSide: '#120504',
+    board: '#26110c', boardAccent: '#4c1c10', boardSide: '#120504',
     grid: '#ff8a5c', border: '#ff6a3d', glow: '#ffb347',
     ambient: '#ffb08f', key: '#fff0e0', fill: '#ff4d2e',
     dust: '#ff7a45',

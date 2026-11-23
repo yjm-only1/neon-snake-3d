@@ -598,8 +598,8 @@ html, body {
   position: absolute;
   left: calc(20px + env(safe-area-inset-left));
   bottom: calc(24px + env(safe-area-inset-bottom));
-  width: 156px;
-  height: 156px;
+  width: 182px;
+  height: 182px;
   border-radius: 50%;
   border: 1px solid rgba(120, 160, 255, 0.35);
   background: radial-gradient(circle at 50% 50%, rgba(25, 249, 255, 0.10), rgba(8, 14, 32, 0.55) 70%);
@@ -613,9 +613,9 @@ body.touch-device .joystick.visible { display: block; }
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 60px;
-  height: 60px;
-  margin: -30px 0 0 -30px;
+  width: 68px;
+  height: 68px;
+  margin: -34px 0 0 -34px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, rgba(255, 255, 255, 0.9), rgba(25, 249, 255, 0.7) 45%, rgba(25, 249, 255, 0.25));
   box-shadow: 0 0 18px rgba(25, 249, 255, 0.5);
@@ -710,15 +710,15 @@ body.touch-device .desktop-hint { display: none; }
 }
 @media (pointer: coarse) and (orientation: landscape) {
   body.touch-device .joystick {
-    width: 132px;
-    height: 132px;
+    width: 146px;
+    height: 146px;
     left: calc(14px + env(safe-area-inset-left));
     bottom: calc(14px + env(safe-area-inset-bottom));
   }
   body.touch-device .joystick-knob {
-    width: 52px;
-    height: 52px;
-    margin: -26px 0 0 -26px;
+    width: 58px;
+    height: 58px;
+    margin: -29px 0 0 -29px;
   }
 }
 @media (max-height: 500px) and (orientation: landscape) {

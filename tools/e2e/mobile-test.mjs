@@ -155,6 +155,24 @@ async function main() {
     fs.writeFileSync(path.join(ROOT, 'Temp', 'game-3d-landscape-joystick.png'), Buffer.from(landShot.data, 'base64'));
     console.log('  · 截图 game-3d-landscape-joystick.png');
 
+    console.log('4. 全图模式手机可见性');
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await evaluate(cdp, `(() => {
+      const raw = JSON.parse(localStorage.getItem('neonSnake3D.v1') || '{}');
+      raw.settings = raw.settings || {};
+      raw.settings.camera = 'map';
+      raw.settings.theme = 'aurora';
+      localStorage.setItem('neonSnake3D.v1', JSON.stringify(raw));
+    })()`);
+    await cdp.send('Page.reload');
+    await sleep(1200);
+    await clickReal(cdp, '[data-diff="classic"]');
+    ok(await waitFor(cdp, '!document.getElementById("soloHud").classList.contains("hidden")'), '全图模式进入对局');
+    const mapShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(ROOT, 'Temp', 'game-3d-mobile-map-aurora.png'), Buffer.from(mapShot.data, 'base64'));
+    console.log('  · 截图 game-3d-mobile-map.png');
+
     const errs = cdp.errors.filter((e) => !/favicon/i.test(e));
     ok(errs.length === 0, '无页面运行时异常', errs.join(' | ').slice(0, 300));
 

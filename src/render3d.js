@@ -393,6 +393,11 @@ export class Renderer3D {
       distance = this.fitBoardDistance(g / 2 + 0.2, elevation, distance);
     }
     this.cameraDistance = distance;
+    if (this.scene.fog) {
+      // 雾随相机距离后移：全图模式相机很远时不能把棋盘雾黑
+      this.scene.fog.near = Math.max(70, distance * 1.15);
+      this.scene.fog.far = Math.max(this.scene.fog.near + 90, distance * 2.4);
+    }
     if (this.followMode) this.computeFollowClamp();
   }
 
@@ -455,8 +460,8 @@ export class Renderer3D {
     ctx.fillRect(0, 0, size, size);
     if (this.settings.grid) {
       const step = size / grid;
-      const dotRadius = grid > 40 ? 1.5 : 2.2;
-      ctx.fillStyle = hexRgba(this.theme.grid, 0.55);
+      const dotRadius = grid > 40 ? 3.4 : 2.2;
+      ctx.fillStyle = hexRgba(this.theme.grid, 0.72);
       for (let i = 0; i <= grid; i++) {
         for (let j = 0; j <= grid; j++) {
           ctx.beginPath();
