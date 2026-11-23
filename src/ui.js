@@ -45,12 +45,12 @@ export class UI {
       'hostConfig', 'guestSummary', 'guestSummaryText',
       'selMode', 'selRhythm', 'selDifficulty', 'btnLanStart', 'btnLanLeave2', 'lanHint',
       'lanEndOverlay', 'lanWinBanner', 'lanRanking', 'btnLanAgain', 'btnLanEndLeave', 'lanEndHint',
-      'pauseOverlay', 'btnResume', 'btnRestart', 'btnQuit',
+      'pauseOverlay', 'btnResume', 'btnPauseSettings', 'btnRestart', 'btnQuit',
       'gameOverOverlay', 'newRecord', 'gameOverTitle', 'resultScore', 'resultGrid', 'btnAgain', 'btnToMenu',
       'achievementsOverlay', 'achCount', 'achList', 'btnAchClose',
       'profileOverlay', 'btnProfile', 'profileAvatarPreview', 'profileNamePreview', 'profileName',
       'avatarPicker', 'colorPicker', 'btnProfileSave', 'btnProfileClose', 'profileStats',
-      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'setTheme', 'setQuality', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
+      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'setTheme', 'setQuality', 'btnFullscreen', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
       'flashLayer', 'toastLayer',
     ];
     for (const id of ids) this.el[id] = document.getElementById(id);
@@ -90,11 +90,13 @@ export class UI {
     this.el.btnAchClose.addEventListener('click', () => this.hideAchievements());
     this.el.btnSettings.addEventListener('click', () => this.showSettings());
     this.el.btnSetClose.addEventListener('click', () => this.hideSettings());
+    this.el.btnFullscreen.addEventListener('click', () => h.onFullscreen());
     this.el.btnHelp.addEventListener('click', () => this.showHelp());
     this.el.btnHelpClose.addEventListener('click', () => this.hideHelp());
 
     this.el.btnPause.addEventListener('click', () => h.onPauseToggle());
     this.el.btnResume.addEventListener('click', () => h.onPauseToggle());
+    this.el.btnPauseSettings.addEventListener('click', () => this.showSettings());
     this.el.btnRestart.addEventListener('click', () => h.onRestart());
     this.el.btnQuit.addEventListener('click', () => h.onQuit());
     this.el.btnAgain.addEventListener('click', () => h.onRestart());
@@ -532,7 +534,7 @@ export class UI {
     const ctx = canvas.getContext('2d');
     const width = canvas.width;
     const pad = 8;
-    const grid = snapshot.grid || 56;
+    const grid = snapshot.grid || 44;
     const scale = (width - pad * 2) / grid;
     ctx.clearRect(0, 0, width, width);
     ctx.fillStyle = 'rgba(30, 55, 130, 0.16)';

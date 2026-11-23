@@ -706,3 +706,31 @@ body.touch-device .desktop-hint { display: none; }
   .screen { gap: 8px; }
   .diff-card { padding: 10px; }
 }
+
+/* 手机横屏：紧凑菜单 + 缩小方向键，避免遮住棋盘 */
+@media (max-height: 500px) and (orientation: landscape) {
+  .screen { overflow-y: auto; gap: 6px; padding: 10px 16px; }
+  .title { font-size: clamp(24px, 6vw, 40px); letter-spacing: 3px; }
+  .subtitle { font-size: 10px; letter-spacing: 5px; }
+  .diff-card { padding: 8px 12px; gap: 3px; }
+  .diff-name { font-size: 17px; }
+  .diff-tag, .diff-best { font-size: 10px; }
+  .lan-btn { padding: 8px 20px; }
+  .menu-actions .ghost-btn { padding: 7px 14px; font-size: 13px; }
+  .screen .footnote { display: none; }
+  .hud-top { padding-top: calc(6px + env(safe-area-inset-top)); }
+}
+@media (pointer: coarse) and (orientation: landscape) {
+  body.touch-device .dpad {
+    grid-template-columns: repeat(3, 52px);
+    grid-template-rows: repeat(3, 52px);
+    gap: 6px;
+    left: calc(12px + env(safe-area-inset-left));
+    bottom: calc(12px + env(safe-area-inset-bottom));
+  }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .toast-layer { top: calc(8px + env(safe-area-inset-top)); width: auto; max-width: 70vw; }
+  .toast { font-size: 12px; padding: 6px 14px; }
+  .diff-chip { display: none; }
+}

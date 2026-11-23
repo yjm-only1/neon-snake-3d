@@ -272,25 +272,24 @@ const server = http.createServer((req, res) => {
   });
 });
 
-let lastBroadcast = 0;
-let lastPrune = 0;
+// 模拟与广播解耦：模拟 10ms 步进，广播独立 30Hz
+setInterval(() => {
+  arena.update(TICK_MS);
+}, TICK_MS);
+
+setInterval(() => {
+  broadcastNow();
+}, BROADCAST_MS);
+
 setInterval(() => {
   const now = Date.now();
-  arena.update(TICK_MS);
-  if (now - lastBroadcast >= BROADCAST_MS) {
-    lastBroadcast = now;
-    broadcastNow();
-  }
-  if (now - lastPrune >= 2000) {
-    lastPrune = now;
-    for (const [token, session] of sessions) {
-      if (now - session.lastSeen > SESSION_TIMEOUT_MS) {
-        removePlayerByToken(token);
-        console.log(`[timeout] ${session.playerId} 心跳超时，移出房间`);
-      }
+  for (const [token, session] of sessions) {
+    if (now - session.lastSeen > SESSION_TIMEOUT_MS) {
+      removePlayerByToken(token);
+      console.log(`[timeout] ${session.playerId} 心跳超时，移出房间`);
     }
   }
-}, TICK_MS);
+}, 2000);
 
 // 每个广播周期给 SSE 写一个注释帧，避免中间层超时
 setInterval(() => {

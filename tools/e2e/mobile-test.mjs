@@ -122,6 +122,24 @@ async function main() {
     fs.writeFileSync(path.join(ROOT, 'Temp', 'game-3d-mobile-dpad.png'), Buffer.from(shot.data, 'base64'));
     console.log('  · 截图 game-3d-mobile-dpad.png');
 
+    console.log('3. 横屏适配');
+    await cdp.send('Emulation.setDeviceMetricsOverride', { width: 844, height: 390, deviceScaleFactor: 2, mobile: true });
+    await cdp.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
+    await cdp.send('Page.reload');
+    await sleep(1200);
+    ok(await waitFor(cdp, 'document.querySelectorAll("[data-diff]").length === 3'), '横屏菜单正常加载');
+    ok(await evaluate(cdp, 'document.body.classList.contains("touch-device")'), '横屏仍识别触屏');
+    await clickReal(cdp, '[data-diff="classic"]');
+    ok(await waitFor(cdp, '!document.getElementById("soloHud").classList.contains("hidden")'), '横屏进入对局');
+    ok(await evaluate(cdp, 'document.getElementById("dpad").classList.contains("visible")'), '横屏方向键显示');
+    await clickReal(cdp, '[data-dir="up"]');
+    await sleep(400);
+    const landDir = await evaluate(cdp, '(() => { const g = window.__neonSnake3D.getGame(); return [g.dir.x, g.dir.y].join(","); })()');
+    ok(landDir === '0,-1', '横屏点击方向键转向', `dir=${landDir}`);
+    const landShot = await cdp.send('Page.captureScreenshot', { format: 'png' });
+    fs.writeFileSync(path.join(ROOT, 'Temp', 'game-3d-landscape-dpad.png'), Buffer.from(landShot.data, 'base64'));
+    console.log('  · 截图 game-3d-landscape-dpad.png');
+
     const errs = cdp.errors.filter((e) => !/favicon/i.test(e));
     ok(errs.length === 0, '无页面运行时异常', errs.join(' | ').slice(0, 300));
 

@@ -7,7 +7,8 @@ export class NetClient {
     this.snapshot = null;
     this.prevSnapshot = null;
     this.lastArrival = 0;
-    this.snapshotInterval = 66;
+    this.snapshotInterval = 50;
+    this.frames = [];
     this.events = [];
     this.source = null;
     this.pingTimer = null;
@@ -82,18 +83,48 @@ export class NetClient {
     if (this.snapshot) {
       this.prevSnapshot = this.snapshot;
       const delta = now - this.lastArrival;
-      if (delta > 24 && delta < 500) this.snapshotInterval = delta;
+      if (delta > 16 && delta < 500) this.snapshotInterval = delta;
     }
     this.snapshot = snapshot;
     this.lastArrival = now;
+    this.frames.push({ snapshot, at: now });
+    if (this.frames.length > 6) this.frames.shift();
     if (this.handlers.onSnapshot) this.handlers.onSnapshot(snapshot);
   }
 
-  // 渲染插值系数：0=上一快照，1=最新快照
-  getInterpolation() {
-    if (!this.prevSnapshot) return 1;
-    const t = (performance.now() - this.lastArrival) / this.snapshotInterval;
-    return Math.max(0, Math.min(1, t));
+  // 双快照按时间插值：渲染时刻落后最新快照一个“渲染延迟”，
+  // 快照到达抖动不会直接变成画面抖动；落后时用最新帧按速度短距离外推。
+  getRenderFrame(now) {
+    const frames = this.frames;
+    if (frames.length === 0) return null;
+    const delay = Math.min(140, Math.max(60, this.snapshotInterval * 1.8 + 8));
+    const renderTime = now - delay;
+    let a = frames[0];
+    let b = frames[0];
+    if (frames.length > 1) {
+      a = frames[frames.length - 2];
+      b = frames[frames.length - 1];
+      for (let i = 1; i < frames.length; i++) {
+        if (frames[i].at >= renderTime) {
+          a = frames[i - 1];
+          b = frames[i];
+          break;
+        }
+      }
+    }
+    let alpha = 1;
+    if (b.at > a.at) {
+      alpha = Math.max(0, Math.min(1, (renderTime - a.at) / (b.at - a.at)));
+    }
+    let extraSec = 0;
+    if (renderTime > b.at) extraSec = Math.min(0.1, (renderTime - b.at) / 1000);
+    if (renderTime < a.at) {
+      a = frames[0];
+      b = frames[0];
+      alpha = 1;
+      extraSec = 0;
+    }
+    return { a: a.snapshot, b: b.snapshot, alpha, extraSec };
   }
 
   drainEvents() {
@@ -152,6 +183,7 @@ export class NetClient {
     this.token = null;
     this.snapshot = null;
     this.prevSnapshot = null;
+    this.frames.length = 0;
     this.events = [];
   }
 }

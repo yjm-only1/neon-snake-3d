@@ -46,12 +46,12 @@ export const FOOD_TYPES = ['normal', 'gold', 'shield', 'slow', 'double'];
 
 // 联机
 export const MP = {
-  grid: 56,              // 大战场：面积约为原来的 4 倍
+  grid: 44,              // 大战场：面积约为原来的 2.5 倍（28² → 44²）
   cameraFollowHalf: 14,  // 跟随镜头可见半宽（约 28 格视野）
   foodSpawnRadius: 12,   // 共享模式新食物围绕玩家的刷新半径
   maxPlayers: 8,
   tickMs: 10,            // 服务端模拟步长（高频步进，移动格不再被 60ms 量化）
-  snapshotMs: 50,        // 快照广播间隔（20Hz，配合客户端预测）
+  snapshotMs: 33,        // 快照广播间隔（30Hz，配合双快照插值）
   countdownMs: 5000,
   matchMs: 180000,       // 限时 3 分钟
   survivalMaxMs: 600000, // 生存模式兜底时长

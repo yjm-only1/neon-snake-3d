@@ -88,8 +88,7 @@ function makeLabelTexture(text, color) {
 function resolveQuality(setting) {
   if (setting === 'low' || setting === 'high') return setting;
   const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
-  const touch = coarse || (navigator.maxTouchPoints || 0) > 0;
-  return touch ? 'low' : 'high';
+  return coarse ? 'low' : 'high';
 }
 
 function hashPhase(id) {
@@ -294,6 +293,36 @@ export class Renderer3D {
     if (!this.followMode) this.updateCamera(null, 0, performance.now());
   }
 
+  elevationFor(aspect) {
+    return aspect < 0.8 ? 0.94 : 0.72;
+  }
+
+  // 单人/菜单：把棋盘四角投影到屏幕，迭代拉远直到整张地图（含下边框）都在画面内
+  fitBoardDistance(halfSize, elevation, startDistance) {
+    const depth = Math.sqrt(Math.max(0.02, 1 - elevation * elevation));
+    const corners = [
+      [-halfSize, 0, -halfSize],
+      [halfSize, 0, -halfSize],
+      [-halfSize, 0, halfSize],
+      [halfSize, 0, halfSize],
+    ];
+    const point = new THREE.Vector3();
+    let distance = startDistance;
+    for (let iteration = 0; iteration < 8; iteration++) {
+      this.camera.position.set(0, distance * elevation, distance * depth);
+      this.camera.lookAt(0, 0, 0);
+      this.camera.updateMatrixWorld(true);
+      let maxAbs = 0;
+      for (const corner of corners) {
+        point.set(corner[0], corner[1], corner[2]).project(this.camera);
+        maxAbs = Math.max(maxAbs, Math.abs(point.x), Math.abs(point.y));
+      }
+      if (maxAbs <= 0.9) break;
+      distance *= maxAbs / 0.86;
+    }
+    return distance;
+  }
+
   refreshProjection() {
     const g = this.grid || 24;
     const portrait = this.aspect < 0.8;
@@ -301,18 +330,21 @@ export class Renderer3D {
     const halfBoard = g / 2 + pad;
     const viewHalf = this.followMode ? Math.min(halfBoard, MP.cameraFollowHalf) : halfBoard;
     const tan = Math.tan((this.camera.fov * Math.PI / 180) / 2);
-    const elevation = portrait ? 0.94 : 0.72;
+    const elevation = this.elevationFor(this.aspect);
     const distV = (viewHalf * elevation) / tan;
     const distH = viewHalf / (tan * this.aspect);
-    this.cameraDistance = Math.max(distV, distH) * (portrait ? 1.0 : 1.12);
+    let distance = Math.max(distV, distH) * (portrait ? 1.0 : 1.12);
     this.camera.aspect = this.aspect;
     this.camera.updateProjectionMatrix();
+    if (!this.followMode) {
+      distance = this.fitBoardDistance(g / 2 + 0.2, elevation, distance);
+    }
+    this.cameraDistance = distance;
   }
 
   updateCamera(focusWorld, shake, now) {
     const tan = Math.tan((this.camera.fov * Math.PI / 180) / 2);
-    const portrait = this.aspect < 0.8;
-    const elevation = portrait ? 0.94 : 0.72;
+    const elevation = this.elevationFor(this.aspect);
     const depthFactor = Math.sqrt(Math.max(0.02, 1 - elevation * elevation));
     let targetX = 0;
     let targetZ = 0;

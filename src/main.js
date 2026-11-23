@@ -16,7 +16,7 @@ const effects = new Effects();
 const canvas = document.getElementById('game');
 const renderer = new Renderer3D(canvas, state.settings);
 const dpadEl = document.getElementById('dpad');
-const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('touch-device', isTouchDevice);
 
 let game = null;
@@ -42,6 +42,7 @@ const ui = new UI(state, {
   onLanStart: () => startLanMatch(),
   onLanConfig: (partial) => changeLanConfig(partial),
   onSaveProfile: () => saveState(state),
+  onFullscreen: () => toggleFullscreen(),
   onPauseToggle: () => togglePause(),
   onRestart: () => restartCurrent(),
   onQuit: () => quitToMenu(),
@@ -133,6 +134,29 @@ function confirmAction() {
   if (mode === 'menu') startSolo(currentDiff);
   else if (mode === 'soloGameOver') startSolo(currentDiff);
   else if (mode === 'soloPaused') togglePause();
+}
+
+function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.();
+      return;
+    }
+    const root = document.documentElement;
+    const request = root.requestFullscreen ? root.requestFullscreen() : null;
+    const lock = () => {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => ui.toast('已全屏；若未横屏请手动旋转手机', 'hint'));
+      } else {
+        ui.toast('已全屏；若未横屏请手动旋转手机', 'hint');
+      }
+    };
+    if (request && request.then) request.then(lock).catch(() => ui.toast('当前浏览器不支持全屏，请手动旋转手机', 'error'));
+    else if (request) lock();
+    else ui.toast('当前浏览器不支持全屏，请手动旋转手机', 'error');
+  } catch (err) {
+    ui.toast('当前浏览器不支持全屏，请手动旋转手机', 'error');
+  }
 }
 
 function toggleMute() {
@@ -417,13 +441,12 @@ function wrapCoord(value, grid) {
   return ((value % grid) + grid) % grid;
 }
 
-// 服务端下发「格内进度」：客户端按当前朝向预测到下一格，60fps 连续运动，不再等待下一帧快照
-function predictSegments(player, grid, elapsedSec) {
+// 服务端「格子 + 格内进度」→ 连续坐标；extraCells 用于快照落后时的短距离外推
+function continuousSegments(player, grid, extraCells) {
   const segments = player.segments;
   if (!segments || segments.length === 0) return [];
   const base = Math.max(0, Math.min(0.98, player.progress || 0));
-  const speed = player.speed || 8;
-  const progress = Math.max(0, Math.min(1, base + Math.max(0, elapsedSec) * speed));
+  const progress = Math.max(0, Math.min(1, base + Math.max(0, extraCells)));
   const dir = player.dir || [1, 0];
   const head = segments[0];
   const points = [[
@@ -445,22 +468,45 @@ function predictSegments(player, grid, elapsedSec) {
   return points;
 }
 
+function blendSegments(from, to, alpha) {
+  if (!from || from.length !== to.length || alpha >= 1) return to;
+  const points = [];
+  for (let i = 0; i < to.length; i++) {
+    const a = from[i];
+    const b = to[i];
+    if (Math.abs(b[0] - a[0]) > 1.5 || Math.abs(b[1] - a[1]) > 1.5) {
+      points.push([b[0], b[1]]);
+    } else {
+      points.push([a[0] + (b[0] - a[0]) * alpha, a[1] + (b[1] - a[1]) * alpha]);
+    }
+  }
+  return points;
+}
+
 function buildLanView() {
-  const snapshot = net.snapshot;
+  // 双快照按时间插值 + 渲染延迟：快照到达抖动不会直接变成画面抖动
+  const frame = net.getRenderFrame(performance.now());
+  if (!frame) return { grid: 44, snakes: [], foods: [], follow: true, focus: lanFocus };
+  const { a, b, alpha, extraSec } = frame;
+  const snapshot = b;
   const lanes = snapshot.mode === 'lanes';
-  const grid = snapshot.grid || 56;
-  const elapsedSec = snapshot.phase === 'playing'
-    ? Math.min(0.2, Math.max(0, (performance.now() - net.lastArrival) / 1000))
-    : 0;
+  const grid = snapshot.grid || 44;
   const relevant = lanes ? snapshot.players.filter((p) => p.id === selfId) : snapshot.players;
-  const snakes = relevant.map((player) => ({
-    id: player.id,
-    color: player.color,
-    label: `${player.avatar || '🐍'} ${player.name}`,
-    segments: player.alive ? predictSegments(player, grid, elapsedSec) : [],
-    dir: player.dir,
-    visible: player.alive,
-  }));
+  const snakes = relevant.map((player) => {
+    const prevPlayer = a && a.players ? a.players.find((p) => p.id === player.id) : null;
+    const previous = prevPlayer && prevPlayer.alive ? continuousSegments(prevPlayer, grid, 0) : null;
+    const current = player.alive
+      ? continuousSegments(player, grid, snapshot.phase === 'playing' ? extraSec * (player.speed || 0) : 0)
+      : [];
+    return {
+      id: player.id,
+      color: player.color,
+      label: `${player.avatar || '🐍'} ${player.name}`,
+      segments: player.alive ? blendSegments(previous, current, alpha) : [],
+      dir: player.dir,
+      visible: player.alive,
+    };
+  });
   let foods = [];
   const me = snapshot.players.find((p) => p.id === selfId);
   if (lanes) {
@@ -468,7 +514,6 @@ function buildLanView() {
   } else {
     foods = snapshot.foods || [];
   }
-  // 大战场镜头跟随自己的蛇；死亡等待重生时停在最后一次位置
   const selfSnake = snakes.find((snake) => snake.id === selfId);
   if (selfSnake && selfSnake.segments.length > 0) {
     lanFocus = selfSnake.segments[0];

@@ -210,7 +210,7 @@ console.log('8. 各自竞速');
 
 console.log('8.5 大战场与食物刷新');
 {
-  ok(MP.grid === 56, '联机棋盘为 56x56（面积 4 倍）');
+  ok(MP.grid === 44, '联机棋盘为 44x44（面积约 2.5 倍）');
   const { arena } = started(2, { mode: 'race' });
   const heads = [...arena.players.values()].map((p) => p.segments[0]);
   const distances = arena.sharedFoods.map((food) =>
