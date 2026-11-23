@@ -16,10 +16,8 @@ const effects = new Effects();
 const canvas = document.getElementById('game');
 const renderer = new Renderer3D(canvas, state.settings);
 const dpadEl = document.getElementById('dpad');
-document.body.classList.toggle(
-  'touch-device',
-  window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0,
-);
+const isTouchDevice = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+document.body.classList.toggle('touch-device', isTouchDevice);
 
 let game = null;
 let mode = 'menu'; // menu | solo | soloPaused | soloDying | soloGameOver | lan
@@ -90,7 +88,7 @@ function startSolo(diffId) {
   audio.setIntensity(88 + game.currentSpeed() * 3.2);
   if (!hintShown) {
     hintShown = true;
-    ui.toast('方向键 / WASD 转向 · 空格暂停 · 手机滑动', 'hint');
+    ui.toast(isTouchDevice ? '滑动屏幕或使用左下方向键转向' : '方向键 / WASD 转向 · 空格暂停 · 手机滑动屏幕', 'hint');
   }
 }
 
@@ -415,37 +413,54 @@ function buildSoloView() {
   };
 }
 
-function interpolateSegments(prevPlayer, player, alpha) {
-  const current = player.segments;
-  const previous = prevPlayer ? prevPlayer.segments : null;
-  if (!previous || previous.length !== current.length) return current;
-  const out = [];
-  for (let i = 0; i < current.length; i++) {
-    const c = current[i];
-    const o = previous[i];
-    const wrapped = Math.abs(c[0] - o[0]) > 1.5 || Math.abs(c[1] - o[1]) > 1.5;
-    out.push(wrapped ? [c[0], c[1]] : [o[0] + (c[0] - o[0]) * alpha, o[1] + (c[1] - o[1]) * alpha]);
+function wrapCoord(value, grid) {
+  return ((value % grid) + grid) % grid;
+}
+
+// 服务端下发「格内进度」：客户端按当前朝向预测到下一格，60fps 连续运动，不再等待下一帧快照
+function predictSegments(player, grid, elapsedSec) {
+  const segments = player.segments;
+  if (!segments || segments.length === 0) return [];
+  const base = Math.max(0, Math.min(0.98, player.progress || 0));
+  const speed = player.speed || 8;
+  const progress = Math.max(0, Math.min(1, base + Math.max(0, elapsedSec) * speed));
+  const dir = player.dir || [1, 0];
+  const head = segments[0];
+  const points = [[
+    wrapCoord(head[0] + dir[0] * progress, grid),
+    wrapCoord(head[1] + dir[1] * progress, grid),
+  ]];
+  for (let i = 1; i < segments.length; i++) {
+    const current = segments[i];
+    const ahead = segments[i - 1];
+    if (Math.abs(ahead[0] - current[0]) > 1.5 || Math.abs(ahead[1] - current[1]) > 1.5) {
+      points.push([current[0], current[1]]);
+      continue;
+    }
+    points.push([
+      current[0] + (ahead[0] - current[0]) * progress,
+      current[1] + (ahead[1] - current[1]) * progress,
+    ]);
   }
-  return out;
+  return points;
 }
 
 function buildLanView() {
   const snapshot = net.snapshot;
-  const previous = net.prevSnapshot;
-  const alpha = net.getInterpolation();
   const lanes = snapshot.mode === 'lanes';
+  const grid = snapshot.grid || 56;
+  const elapsedSec = snapshot.phase === 'playing'
+    ? Math.min(0.2, Math.max(0, (performance.now() - net.lastArrival) / 1000))
+    : 0;
   const relevant = lanes ? snapshot.players.filter((p) => p.id === selfId) : snapshot.players;
-  const snakes = relevant.map((player) => {
-    const prevPlayer = previous ? previous.players.find((p) => p.id === player.id) : null;
-    return {
-      id: player.id,
-      color: player.color,
-      label: `${player.avatar || '🐍'} ${player.name}`,
-      segments: player.alive ? interpolateSegments(prevPlayer, player, alpha) : [],
-      dir: player.dir,
-      visible: player.alive,
-    };
-  });
+  const snakes = relevant.map((player) => ({
+    id: player.id,
+    color: player.color,
+    label: `${player.avatar || '🐍'} ${player.name}`,
+    segments: player.alive ? predictSegments(player, grid, elapsedSec) : [],
+    dir: player.dir,
+    visible: player.alive,
+  }));
   let foods = [];
   const me = snapshot.players.find((p) => p.id === selfId);
   if (lanes) {
@@ -454,11 +469,11 @@ function buildLanView() {
     foods = snapshot.foods || [];
   }
   // 大战场镜头跟随自己的蛇；死亡等待重生时停在最后一次位置
-  const selfSnake = relevant.find((player) => player.id === selfId);
-  if (selfSnake && selfSnake.segments && selfSnake.segments.length > 0) {
+  const selfSnake = snakes.find((snake) => snake.id === selfId);
+  if (selfSnake && selfSnake.segments.length > 0) {
     lanFocus = selfSnake.segments[0];
   }
-  return { grid: snapshot.grid || 56, snakes, foods, follow: true, focus: lanFocus };
+  return { grid, snakes, foods, follow: true, focus: lanFocus };
 }
 
 // ---------- 主循环 ----------

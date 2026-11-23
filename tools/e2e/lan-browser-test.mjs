@@ -136,6 +136,9 @@ async function main() {
     ok(await waitFor(cdp, 'document.querySelectorAll(".lan-player-row").length === 2', 5000), '大厅显示两名玩家');
     ok(await waitFor(cdp, 'document.getElementById("lanQr").src.includes("/api/qr")', 5000), '大厅显示邀请二维码');
     ok(await evaluate(cdp, 'document.getElementById("lanUrl").textContent.startsWith("http")'), '大厅显示邀请地址');
+    ok(await evaluate(cdp, '!document.getElementById("hostConfig").classList.contains("hidden")'), '房主看到配置区');
+    ok(await evaluate(cdp, 'document.getElementById("guestSummary").classList.contains("hidden")'), '房主不显示访客摘要');
+    ok(await evaluate(cdp, 'document.getElementById("lanInviteTitle").textContent.includes("邀请")'), '房主看到邀请标题');
 
     console.log('3. 房主配置与开局');
     await evaluate(cdp, `(() => {

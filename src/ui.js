@@ -41,7 +41,8 @@ export class UI {
       'lanOverlay', 'lanConnecting', 'lanUnavailable', 'btnLanUnavailableClose',
       'lanForm', 'lanName', 'btnLanJoin', 'btnLanBack',
       'lanLobby', 'lanLobbyCount', 'lanHostTag', 'lanPlayerList',
-      'lanInvite', 'lanQr', 'lanUrl', 'btnCopyUrl',
+      'lanInvite', 'lanInviteTitle', 'lanQr', 'lanUrl', 'btnCopyUrl',
+      'hostConfig', 'guestSummary', 'guestSummaryText',
       'selMode', 'selRhythm', 'selDifficulty', 'btnLanStart', 'btnLanLeave2', 'lanHint',
       'lanEndOverlay', 'lanWinBanner', 'lanRanking', 'btnLanAgain', 'btnLanEndLeave', 'lanEndHint',
       'pauseOverlay', 'btnResume', 'btnRestart', 'btnQuit',
@@ -381,8 +382,22 @@ export class UI {
     this.el.selMode.disabled = !isHost;
     this.el.selRhythm.disabled = !isHost || snapshot.mode === 'lanes';
     this.el.selDifficulty.disabled = !isHost;
+    setHidden(this.el.hostConfig, !isHost);
+    setHidden(this.el.guestSummary, isHost);
     setHidden(this.el.btnLanStart, !isHost);
-    this.el.lanHint.textContent = isHost ? '选择玩法与节奏后点击开始' : '等待房主开始…';
+    if (!isHost) {
+      const mode = MP_MODES[snapshot.mode];
+      const rhythm = MP_RHYTHMS[snapshot.rhythm];
+      const difficulty = DIFFICULTIES[snapshot.difficulty];
+      this.el.guestSummaryText.textContent =
+        `${mode ? mode.name : snapshot.mode} · ${rhythm ? rhythm.name : snapshot.rhythm} · ${difficulty ? difficulty.name : snapshot.difficulty}`;
+    }
+    this.el.lanInviteTitle.textContent = isHost
+      ? '邀请朋友加入（同一 Wi-Fi）'
+      : '把房间分享给朋友（同一 Wi-Fi）';
+    this.el.lanHint.textContent = isHost
+      ? '选择玩法与节奏后点击开始'
+      : '等待房主开始… 也可以邀请更多朋友';
   }
 
   async ensureInvite() {

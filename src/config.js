@@ -50,8 +50,8 @@ export const MP = {
   cameraFollowHalf: 14,  // 跟随镜头可见半宽（约 28 格视野）
   foodSpawnRadius: 12,   // 共享模式新食物围绕玩家的刷新半径
   maxPlayers: 8,
-  tickMs: 60,            // 服务端模拟步长
-  snapshotMs: 66,        // 快照广播间隔（约 15Hz）
+  tickMs: 10,            // 服务端模拟步长（高频步进，移动格不再被 60ms 量化）
+  snapshotMs: 50,        // 快照广播间隔（20Hz，配合客户端预测）
   countdownMs: 5000,
   matchMs: 180000,       // 限时 3 分钟
   survivalMaxMs: 600000, // 生存模式兜底时长
@@ -99,9 +99,10 @@ export const ACHIEVEMENTS = [
   { id: 'mp_win',      name: '局域网之王', desc: '联机结算获得第一名' },
 ];
 
-export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true, theme: 'neon', quality: 'high' };
+export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true, theme: 'neon', quality: 'auto' };
 
 export const QUALITY_LIST = [
+  { id: 'auto', name: '自动（手机流畅）' },
   { id: 'high', name: '高清' },
   { id: 'low', name: '流畅' },
 ];

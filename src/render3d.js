@@ -85,6 +85,13 @@ function makeLabelTexture(text, color) {
   return { texture, aspect: width / height };
 }
 
+function resolveQuality(setting) {
+  if (setting === 'low' || setting === 'high') return setting;
+  const coarse = typeof window.matchMedia === 'function' && window.matchMedia('(pointer: coarse)').matches;
+  const touch = coarse || (navigator.maxTouchPoints || 0) > 0;
+  return touch ? 'low' : 'high';
+}
+
 function hashPhase(id) {
   const value = String(id);
   let hash = 0;
@@ -109,9 +116,10 @@ export class Renderer3D {
   constructor(canvas, settings) {
     this.canvas = canvas;
     this.settings = settings;
-    this.quality = settings.quality === 'low' ? 'low' : 'high';
+    this.qualitySetting = settings.quality || 'auto';
+    this.quality = resolveQuality(this.qualitySetting);
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.quality === 'low' ? 1 : 2));
+    this.renderer.setPixelRatio(this.computePixelRatio());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.theme = THEMES[settings.theme] || THEMES.neon;
@@ -161,11 +169,27 @@ export class Renderer3D {
     this.scene.add(this.fillLight);
   }
 
-  applyQuality(quality) {
-    const next = quality === 'low' ? 'low' : 'high';
+  computePixelRatio() {
+    const dpr = window.devicePixelRatio || 1;
+    const cap = this.quality === 'low' ? 1 : 1.5;
+    let ratio = Math.min(dpr, cap);
+    const width = Math.max(1, window.innerWidth);
+    const height = Math.max(1, window.innerHeight);
+    const maxPixels = 3.2e6; // 大屏/高分屏上限，避免 4K×2 的填充压力
+    const pixels = width * height * ratio * ratio;
+    if (pixels > maxPixels) ratio *= Math.sqrt(maxPixels / pixels);
+    return Math.max(0.75, ratio);
+  }
+
+  applyQuality(qualitySetting) {
+    const setting = qualitySetting || 'auto';
+    const next = resolveQuality(setting);
+    const settingChanged = setting !== this.qualitySetting;
+    this.qualitySetting = setting;
+    if (!settingChanged && next === this.quality) return;
     if (next === this.quality) return;
     this.quality = next;
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, next === 'low' ? 1 : 2));
+    this.renderer.setPixelRatio(this.computePixelRatio());
     if (this.dust) this.dust.visible = next !== 'low';
     if (this.boardHalo) this.boardHalo.visible = next !== 'low';
     for (const entry of this.snakes.values()) {
@@ -261,6 +285,7 @@ export class Renderer3D {
   resize() {
     const width = window.innerWidth;
     const height = window.innerHeight;
+    this.renderer.setPixelRatio(this.computePixelRatio());
     this.renderer.setSize(width, height, false);
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
@@ -271,18 +296,24 @@ export class Renderer3D {
 
   refreshProjection() {
     const g = this.grid || 24;
-    const halfBoard = g / 2 + 1.8;
+    const portrait = this.aspect < 0.8;
+    const pad = portrait ? 0.6 : 1.8;
+    const halfBoard = g / 2 + pad;
     const viewHalf = this.followMode ? Math.min(halfBoard, MP.cameraFollowHalf) : halfBoard;
     const tan = Math.tan((this.camera.fov * Math.PI / 180) / 2);
-    const distV = (viewHalf * 0.8) / tan;
+    const elevation = portrait ? 0.94 : 0.72;
+    const distV = (viewHalf * elevation) / tan;
     const distH = viewHalf / (tan * this.aspect);
-    this.cameraDistance = Math.max(distV, distH) * 1.12;
+    this.cameraDistance = Math.max(distV, distH) * (portrait ? 1.0 : 1.12);
     this.camera.aspect = this.aspect;
     this.camera.updateProjectionMatrix();
   }
 
   updateCamera(focusWorld, shake, now) {
     const tan = Math.tan((this.camera.fov * Math.PI / 180) / 2);
+    const portrait = this.aspect < 0.8;
+    const elevation = portrait ? 0.94 : 0.72;
+    const depthFactor = Math.sqrt(Math.max(0.02, 1 - elevation * elevation));
     let targetX = 0;
     let targetZ = 0;
     if (this.followMode && focusWorld) {
@@ -290,12 +321,12 @@ export class Renderer3D {
       const vert = this.cameraDistance * tan;
       const horz = vert * this.aspect;
       const clampX = Math.max(0, half - Math.min(half, horz * 0.92));
-      const clampZ = Math.max(0, half - Math.min(half, vert * 1.35 * 0.92));
+      const clampZ = Math.max(0, half - Math.min(half, (vert / elevation) * 0.92));
       targetX = Math.max(-clampX, Math.min(clampX, focusWorld.x));
       targetZ = Math.max(-clampZ, Math.min(clampZ, focusWorld.z));
       const dt = this.lastNow ? Math.min(0.1, Math.max(0, (now - this.lastNow) / 1000)) : 0.016;
-      const k = 1 - Math.exp(-dt * 10);
-      if (Math.abs(targetX - this.focus.x) > 12 || Math.abs(targetZ - this.focus.z) > 12) {
+      const k = 1 - Math.exp(-dt * 25);
+      if (Math.abs(targetX - this.focus.x) > 6 || Math.abs(targetZ - this.focus.z) > 6) {
         this.focus.x = targetX;
         this.focus.z = targetZ;
       } else {
@@ -310,7 +341,11 @@ export class Renderer3D {
     const dist = this.cameraDistance || 40;
     const jitterX = shake > 0.2 ? (Math.random() * 2 - 1) * shake * 0.05 : 0;
     const jitterZ = shake > 0.2 ? (Math.random() * 2 - 1) * shake * 0.05 : 0;
-    this.camera.position.set(this.focus.x + jitterX, dist * 0.74, this.focus.z + dist * 0.72 + jitterZ);
+    this.camera.position.set(
+      this.focus.x + jitterX,
+      dist * elevation,
+      this.focus.z + dist * depthFactor + jitterZ,
+    );
     this.camera.lookAt(this.focus.x, 0, this.focus.z);
   }
 

@@ -621,11 +621,14 @@ export class Arena {
   snapshot() {
     const players = [];
     for (const player of this.players.values()) {
+      const interval = 1000 / (player.speed || this.difficulty.baseSpeed);
       players.push({
         id: player.id,
         name: player.name,
         avatar: player.avatar,
         color: player.color,
+        progress: player.alive ? Math.min(0.98, Math.max(0, player.tickAccum / interval)) : 0,
+        speed: player.alive ? player.speed : 0,
         connected: player.connected,
         score: player.score,
         combo: player.comboTimer > 0 ? player.combo : 1,

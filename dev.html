@@ -71,7 +71,10 @@
       <button id="btnHelp" class="ghost-btn">玩法</button>
     </div>
     <p id="menuStats" class="footnote"></p>
-    <p class="footnote dim">方向键 / WASD 转向 · 空格暂停 · 手机滑动屏幕</p>
+    <p class="footnote dim">
+      <span class="desktop-hint">方向键 / WASD 转向 · 空格暂停 · 手机滑动屏幕</span>
+      <span class="mobile-hint">滑动屏幕或使用左下方向键转向</span>
+    </p>
   </div>
 
   <!-- 局域网面板 -->
@@ -109,16 +112,20 @@
         <div id="lanInvite" class="lan-invite">
           <img id="lanQr" class="lan-qr" alt="房间二维码">
           <div class="lan-invite-side">
-            <span class="field-label">邀请朋友（同一 Wi-Fi）</span>
+            <span id="lanInviteTitle" class="field-label">邀请朋友加入（同一 Wi-Fi）</span>
             <span id="lanUrl" class="lan-url">—</span>
             <button id="btnCopyUrl" class="ghost-btn small-btn">复制链接</button>
             <span class="footnote dim">手机扫码，或浏览器输入上面的地址后点「局域网联机」</span>
           </div>
         </div>
-        <div class="lobby-config">
+        <div id="hostConfig" class="lobby-config">
           <label class="field-row"><span>玩法</span><select id="selMode"></select></label>
           <label class="field-row"><span>节奏</span><select id="selRhythm"></select></label>
           <label class="field-row"><span>难度</span><select id="selDifficulty"></select></label>
+        </div>
+        <div id="guestSummary" class="guest-summary hidden">
+          <span class="guest-label">当前设置</span>
+          <b id="guestSummaryText">—</b>
         </div>
         <div class="lobby-actions">
           <button id="btnLanStart" class="primary-btn">开始游戏</button>
