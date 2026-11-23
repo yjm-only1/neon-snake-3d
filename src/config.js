@@ -97,7 +97,37 @@ export const ACHIEVEMENTS = [
   { id: 'mp_win',      name: '局域网之王', desc: '联机结算获得第一名' },
 ];
 
-export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true };
+export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true, theme: 'neon' };
+
+// 皮肤主题：影响底板、点阵、边框、光晕、背景与灯光
+export const THEMES = {
+  neon: {
+    id: 'neon', name: '霓虹',
+    bgTop: '#0d1440', bgBottom: '#04050d',
+    board: '#0b1228', boardAccent: '#16224a', boardSide: '#070c1c',
+    grid: '#5a78ff', border: '#4f7bff', glow: '#19f9ff',
+    ambient: '#8fa4ff', key: '#ffffff', fill: '#4058ff',
+    dust: '#6f8cff',
+  },
+  aurora: {
+    id: 'aurora', name: '极光',
+    bgTop: '#062a2a', bgBottom: '#020b0c',
+    board: '#06201f', boardAccent: '#0d3a34', boardSide: '#041312',
+    grid: '#37e0c0', border: '#2fd8b0', glow: '#64ffda',
+    ambient: '#8fffe0', key: '#f2fffb', fill: '#2fd8b0',
+    dust: '#39d98a',
+  },
+  magma: {
+    id: 'magma', name: '熔岩',
+    bgTop: '#2a0d06', bgBottom: '#0b0302',
+    board: '#1e0a08', boardAccent: '#3a140c', boardSide: '#120504',
+    grid: '#ff8a5c', border: '#ff6a3d', glow: '#ffb347',
+    ambient: '#ffb08f', key: '#fff0e0', fill: '#ff4d2e',
+    dust: '#ff7a45',
+  },
+};
+
+export const THEME_LIST = ['neon', 'aurora', 'magma'];
 
 export const COLORS = {
   bg: '#05060f',

@@ -2,7 +2,7 @@
 import {
   DIFFICULTY_LIST, DIFFICULTIES, ACHIEVEMENTS,
   MP_MODES, MP_MODE_LIST, MP_RHYTHMS, MP_RHYTHM_LIST,
-  AVATARS, PLAYER_COLORS,
+  AVATARS, PLAYER_COLORS, THEMES, THEME_LIST,
 } from './config.js';
 
 const NAME_STORAGE_KEY = 'neonSnake3D.name';
@@ -47,7 +47,7 @@ export class UI {
       'achievementsOverlay', 'achCount', 'achList', 'btnAchClose',
       'profileOverlay', 'btnProfile', 'profileAvatarPreview', 'profileNamePreview', 'profileName',
       'avatarPicker', 'colorPicker', 'btnProfileSave', 'btnProfileClose', 'profileStats',
-      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
+      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'setTheme', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
       'flashLayer', 'toastLayer',
     ];
     for (const id of ids) this.el[id] = document.getElementById(id);
@@ -67,6 +67,9 @@ export class UI {
       .join('');
     this.el.selDifficulty.innerHTML = DIFFICULTY_LIST
       .map((id) => `<option value="${id}">${DIFFICULTIES[id].name} · ${DIFFICULTIES[id].tagline}</option>`)
+      .join('');
+    this.el.setTheme.innerHTML = THEME_LIST
+      .map((id) => `<option value="${id}">${THEMES[id].name}</option>`)
       .join('');
   }
 
@@ -119,6 +122,10 @@ export class UI {
         h.onSettingsChanged();
       });
     }
+    this.el.setTheme.addEventListener('change', () => {
+      this.state.settings.theme = this.el.setTheme.value;
+      h.onSettingsChanged();
+    });
   }
 
   buildDifficultyCards() {
@@ -154,6 +161,7 @@ export class UI {
     this.el.setSfx.checked = this.state.settings.sfx;
     this.el.setMusic.checked = this.state.settings.music;
     this.el.setGrid.checked = this.state.settings.grid;
+    this.el.setTheme.value = this.state.settings.theme;
   }
 
   showMenu() {

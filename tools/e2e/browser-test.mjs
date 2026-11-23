@@ -132,7 +132,31 @@ async function main() {
     ok(profile.avatar === '🦊', '头像保存', profile.avatar);
     ok(profile.color === '#39d98a', '颜色保存', profile.color);
 
-    console.log('3. 单人 3D 对局');
+    console.log('3. 皮肤切换');
+    for (const theme of ['aurora', 'magma']) {
+      await clickReal(cdp, '#btnSettings');
+      await evaluate(cdp, `(() => {
+        const el = document.getElementById('setTheme');
+        el.value = '${theme}';
+        el.dispatchEvent(new Event('change'));
+      })()`);
+      await sleep(500);
+      await clickReal(cdp, '#btnSetClose');
+      await sleep(300);
+      await shot(cdp, `menu-${theme}.png`);
+    }
+    await clickReal(cdp, '#btnSettings');
+    await evaluate(cdp, `(() => {
+      const el = document.getElementById('setTheme');
+      el.value = 'neon';
+      el.dispatchEvent(new Event('change'));
+    })()`);
+    await sleep(300);
+    await clickReal(cdp, '#btnSetClose');
+    const savedTheme = JSON.parse(await evaluate(cdp, 'localStorage.getItem("neonSnake3D.v1")')).settings.theme;
+    ok(savedTheme === 'neon', '皮肤设置已持久化', savedTheme);
+
+    console.log('4. 单人 3D 对局');
     await clickReal(cdp, '[data-diff="classic"]');
     ok(await evaluate(cdp, '!document.getElementById("soloHud").classList.contains("hidden")'), 'HUD 显示');
     ok(await evaluate(cdp, 'window.__neonSnake3D.getMode()') === 'solo', '进入单人模式');
@@ -145,7 +169,7 @@ async function main() {
     await sleep(500);
     await shot(cdp, 'game-3d-desktop.png');
 
-    console.log('4. 死亡与结算');
+    console.log('5. 死亡与结算');
     await evaluate(cdp, 'window.__neonSnake3D.getGame().die("wall")');
     ok(await waitFor(cdp, '!document.getElementById("gameOverOverlay").classList.contains("hidden")', 5000), '结算面板弹出');
     const best = JSON.parse(await evaluate(cdp, 'localStorage.getItem("neonSnake3D.v1")')).bests.classic;

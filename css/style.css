@@ -383,6 +383,16 @@ html, body {
   cursor: pointer;
 }
 .toggle-row input { width: 20px; height: 20px; accent-color: var(--cyan); cursor: pointer; }
+.theme-select {
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(120, 160, 255, 0.35);
+  background: rgba(6, 10, 24, 0.9);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
 
 /* ---------- 个人资料 ---------- */
 .profile-card {

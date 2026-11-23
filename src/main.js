@@ -43,6 +43,7 @@ const ui = new UI(state, {
   onQuit: () => quitToMenu(),
   onConfirm: () => confirmAction(),
   onSettingsChanged: () => {
+    renderer.applyTheme(state.settings.theme, true);
     audio.setSettings(state.settings);
     if (state.settings.music && (mode === 'solo' || (mode === 'lan' && net && net.snapshot && net.snapshot.phase === 'playing'))) {
       audio.startMusic();
