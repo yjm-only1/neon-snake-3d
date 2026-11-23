@@ -6,6 +6,12 @@ Three.js 3D 贪吃蛇：保留经典玩法（三档难度 / 5 种果实 / 连击
 ![单人 3D](screenshots/game-3d-desktop.png)
 ![局域网对战](screenshots/lan-battle-3d.png)
 
+## 永久网址
+
+- **单人 3D（GitHub Pages）**：https://yjm-only1.github.io/neon-snake-3d/
+- **局域网联机**：需一台主机运行本仓库的 `node server/server.mjs`（GitHub Pages 只能单人）
+- 经典 2D 版（旧）：https://yjm-only1.github.io/neon-snake/
+
 ## 单人 3D
 
 - 双击根目录 `index.html`（构建产物）即玩；或运行局域网服务器后在浏览器打开
