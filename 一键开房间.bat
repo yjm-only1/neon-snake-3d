@@ -1,15 +1,20 @@
 @echo off
 chcp 65001 >nul
-cd /d %~dp0
+title Neon Snake 3D - LAN Room
+cd /d "%~dp0"
 where node >nul 2>nul
 if errorlevel 1 (
-  echo 未找到 Node.js，请先安装：https://nodejs.org/
+  echo Node.js not found. Please install it from https://nodejs.org/
+  echo.
   pause
   exit /b 1
 )
 echo.
-echo  正在开启局域网房间，浏览器将自动打开…
-echo  关闭本窗口（或按 Ctrl+C）即结束房间。
+echo   Neon Snake 3D - LAN room
+echo   The browser will open automatically.
+echo   Keep this window open while playing; close it to stop the room.
 echo.
 node server\server.mjs
-pause
+echo.
+echo   Room stopped. Press any key to close.
+pause >nul

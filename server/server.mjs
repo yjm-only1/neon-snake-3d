@@ -301,13 +301,28 @@ setInterval(() => {
 }, 5000);
 
 function openBrowser(target) {
-  if (process.argv.includes('--no-open') || !process.stdout.isTTY) return;
+  if (process.env.NO_OPEN === '1' || process.argv.includes('--no-open') || !process.stdout.isTTY) return;
   const command = process.platform === 'win32'
     ? `cmd /c start "" "${target}"`
     : process.platform === 'darwin'
       ? `open "${target}"`
       : `xdg-open "${target}"`;
   exec(command, () => { /* 打不开浏览器不影响房间运行 */ });
+}
+
+server.on('error', (err) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error('');
+    console.error(`端口 ${PORT} 已被占用：可能已经有一个房间在运行。`);
+    console.error(`直接访问 http://localhost:${PORT} ，或换端口运行：node server/server.mjs ${PORT + 1}`);
+  } else {
+    console.error('房间启动失败:', err.message);
+  }
+  process.exit(1);
+});
+
+if (!fs.existsSync(path.join(ROOT, 'index.html'))) {
+  console.warn('提示：未找到构建产物 index.html，请先运行 python tools/build_single.py');
 }
 
 server.listen(PORT, '0.0.0.0', () => {
