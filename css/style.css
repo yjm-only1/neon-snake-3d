@@ -185,8 +185,8 @@ html, body {
   background: linear-gradient(180deg, rgba(5, 6, 15, 0.72), rgba(5, 6, 15, 0));
 }
 .hud-stat { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.1; }
-.hud-stat .label { font-size: 10px; letter-spacing: 2px; color: var(--dim); }
-.hud-stat b { font-size: clamp(20px, 3.4vw, 28px); font-weight: 800; color: var(--cyan); text-shadow: 0 0 12px rgba(25, 249, 255, 0.5); }
+.hud-stat .label { font-size: 12px; letter-spacing: 2px; color: var(--dim); }
+.hud-stat b { font-size: clamp(24px, 3.8vw, 34px); font-weight: 900; color: var(--cyan); text-shadow: 0 0 14px rgba(25, 249, 255, 0.55); }
 
 .combo-chip {
   margin-left: auto;
@@ -220,12 +220,12 @@ html, body {
 .lan-mode-chip {
   margin-left: auto;
   align-self: center;
-  font-size: 12px;
+  font-size: 14px;
   letter-spacing: 2px;
   color: var(--cyan);
   border: 1px solid rgba(25, 249, 255, 0.35);
   border-radius: 999px;
-  padding: 5px 14px;
+  padding: 6px 16px;
   white-space: nowrap;
 }
 

@@ -17,6 +17,13 @@ const canvas = document.getElementById('game');
 const renderer = new Renderer3D(canvas, state.settings);
 const joystickEl = document.getElementById('joystick');
 const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
+
+function useFollowCamera() {
+  const mode = state.settings.camera || 'auto';
+  if (mode === 'map') return false;
+  if (mode === 'follow') return true;
+  return isTouchDevice;
+}
 document.body.classList.toggle('touch-device', isTouchDevice);
 
 let game = null;
@@ -443,7 +450,7 @@ function buildSoloView() {
       doubleBuff: game.buffs.doubleRemaining > 0,
     }],
     foods,
-    follow: state.settings.camera === 'follow',
+    follow: useFollowCamera(),
     focus: [game.body.head.x, game.body.head.y],
   };
 }
@@ -465,7 +472,7 @@ function blendSegments(from, to, alpha) {
 
 function buildLanView() {
   const frame = net.getRenderFrame(performance.now());
-  if (!frame) return { grid: MP.grid, snakes: [], foods: [], follow: state.settings.camera === 'follow', focus: lanFocus };
+  if (!frame) return { grid: MP.grid, snakes: [], foods: [], follow: useFollowCamera(), focus: lanFocus };
   const { a, b, alpha } = frame;
   const snapshot = b;
   const lanes = snapshot.mode === 'lanes';
@@ -498,7 +505,7 @@ function buildLanView() {
   if (selfSnake && selfSnake.segments.length > 0) {
     lanFocus = selfSnake.segments[0];
   }
-  return { grid, snakes, foods, follow: state.settings.camera === 'follow', focus: lanFocus };
+  return { grid, snakes, foods, follow: useFollowCamera(), focus: lanFocus };
 }
 
 // ---------- 主循环 ----------
