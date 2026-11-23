@@ -142,6 +142,10 @@ async function main() {
     ok(inCountdown, '进入 5 秒倒计时');
     const playing = await waitFor(() => sse1.latest() && sse1.latest().phase === 'playing', 8000);
     ok(playing, '倒计时结束进入对局');
+    const playSnap = sse1.latest();
+    const meSnap = playSnap.players.find((p) => p.id === p1.data.playerId);
+    ok(typeof meSnap.progress === 'number' && meSnap.progress >= 0 && meSnap.progress <= 1, '快照含格内进度');
+    ok(typeof meSnap.speed === 'number' && meSnap.speed > 0, '快照含移动速度');
 
     console.log('4. 输入与移动');
     const before = sse1.latest().players.find((p) => p.id === p1.data.playerId);
