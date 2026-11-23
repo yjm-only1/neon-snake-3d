@@ -359,17 +359,18 @@ export class Renderer3D {
       return Math.abs(point.x) <= limit && Math.abs(point.y) <= limit;
     };
 
+    // 从棋盘中心向外推：只要墙仍在画面内就继续靠近墙，直到墙贴近屏幕边缘
     let clampZ = half;
-    for (let i = 0; i < 32; i++) {
-      if (fits(0, clampZ, 0, half)) break;
-      clampZ -= half / 32;
-      if (clampZ < 0) { clampZ = 0; break; }
+    for (let i = 0; i < 64; i++) {
+      const candidate = clampZ - half / 64;
+      if (candidate < 0 || !fits(0, candidate, 0, half)) break;
+      clampZ = candidate;
     }
     let clampX = half;
-    for (let i = 0; i < 32; i++) {
-      if (fits(clampX, 0, half, 0)) break;
-      clampX -= half / 32;
-      if (clampX < 0) { clampX = 0; break; }
+    for (let i = 0; i < 64; i++) {
+      const candidate = clampX - half / 64;
+      if (candidate < 0 || !fits(candidate, 0, half, 0)) break;
+      clampX = candidate;
     }
     this.followClampX = clampX;
     this.followClampZ = clampZ;

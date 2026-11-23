@@ -2,7 +2,7 @@
 import {
   DIFFICULTY_LIST, DIFFICULTIES, ACHIEVEMENTS,
   MP_MODES, MP_MODE_LIST, MP_RHYTHMS, MP_RHYTHM_LIST,
-  AVATARS, PLAYER_COLORS, THEMES, THEME_LIST, FOOD_DEFS, QUALITY_LIST,
+  AVATARS, PLAYER_COLORS, THEMES, THEME_LIST, FOOD_DEFS, QUALITY_LIST, CAMERA_MODES,
 } from './config.js';
 
 const NAME_STORAGE_KEY = 'neonSnake3D.name';
@@ -50,7 +50,7 @@ export class UI {
       'achievementsOverlay', 'achCount', 'achList', 'btnAchClose',
       'profileOverlay', 'btnProfile', 'profileAvatarPreview', 'profileNamePreview', 'profileName',
       'avatarPicker', 'colorPicker', 'btnProfileSave', 'btnProfileClose', 'profileStats',
-      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'setTheme', 'setQuality', 'btnFullscreen', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
+      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'setTheme', 'setQuality', 'setCamera', 'btnFullscreen', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
       'flashLayer', 'toastLayer',
     ];
     for (const id of ids) this.el[id] = document.getElementById(id);
@@ -75,6 +75,9 @@ export class UI {
       .map((id) => `<option value="${id}">${THEMES[id].name}</option>`)
       .join('');
     this.el.setQuality.innerHTML = QUALITY_LIST
+      .map((item) => `<option value="${item.id}">${item.name}</option>`)
+      .join('');
+    this.el.setCamera.innerHTML = CAMERA_MODES
       .map((item) => `<option value="${item.id}">${item.name}</option>`)
       .join('');
   }
@@ -138,6 +141,10 @@ export class UI {
       this.state.settings.quality = this.el.setQuality.value;
       h.onSettingsChanged();
     });
+    this.el.setCamera.addEventListener('change', () => {
+      this.state.settings.camera = this.el.setCamera.value;
+      h.onSettingsChanged();
+    });
   }
 
   buildDifficultyCards() {
@@ -175,6 +182,7 @@ export class UI {
     this.el.setGrid.checked = this.state.settings.grid;
     this.el.setTheme.value = this.state.settings.theme;
     this.el.setQuality.value = this.state.settings.quality;
+    this.el.setCamera.value = this.state.settings.camera;
   }
 
   showMenu() {

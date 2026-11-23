@@ -110,7 +110,12 @@ export const ACHIEVEMENTS = [
   { id: 'mp_win',      name: '局域网之王', desc: '联机结算获得第一名' },
 ];
 
-export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true, theme: 'neon', quality: 'auto' };
+export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true, theme: 'neon', quality: 'auto', camera: 'map' };
+
+export const CAMERA_MODES = [
+  { id: 'map', name: '全图' },
+  { id: 'follow', name: '跟随蛇' },
+];
 
 export const QUALITY_LIST = [
   { id: 'auto', name: '自动（手机流畅）' },

@@ -443,7 +443,7 @@ function buildSoloView() {
       doubleBuff: game.buffs.doubleRemaining > 0,
     }],
     foods,
-    follow: true,
+    follow: state.settings.camera === 'follow',
     focus: [game.body.head.x, game.body.head.y],
   };
 }
@@ -465,7 +465,7 @@ function blendSegments(from, to, alpha) {
 
 function buildLanView() {
   const frame = net.getRenderFrame(performance.now());
-  if (!frame) return { grid: MP.grid, snakes: [], foods: [], follow: true, focus: lanFocus };
+  if (!frame) return { grid: MP.grid, snakes: [], foods: [], follow: state.settings.camera === 'follow', focus: lanFocus };
   const { a, b, alpha } = frame;
   const snapshot = b;
   const lanes = snapshot.mode === 'lanes';
@@ -498,7 +498,7 @@ function buildLanView() {
   if (selfSnake && selfSnake.segments.length > 0) {
     lanFocus = selfSnake.segments[0];
   }
-  return { grid, snakes, foods, follow: true, focus: lanFocus };
+  return { grid, snakes, foods, follow: state.settings.camera === 'follow', focus: lanFocus };
 }
 
 // ---------- 主循环 ----------

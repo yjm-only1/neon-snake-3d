@@ -197,7 +197,17 @@ async function main() {
     await sleep(400);
     await shot(cdp, 'shield-3d.png');
 
-    console.log('4.6 下边界跟随');
+    console.log('4.6 切到跟随镜头并验证下边界');
+    await clickReal(cdp, '#btnPause');
+    await clickReal(cdp, '#btnPauseSettings');
+    await evaluate(cdp, `(() => {
+      const el = document.getElementById('setCamera');
+      el.value = 'follow';
+      el.dispatchEvent(new Event('change'));
+    })()`);
+    await sleep(300);
+    await clickReal(cdp, '#btnSetClose');
+    await clickReal(cdp, '#btnResume');
     await evaluate(cdp, `(() => {
       const g = window.__neonSnake3D.getGame();
       const segs = g.body.segments;
