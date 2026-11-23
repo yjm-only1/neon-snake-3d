@@ -29,6 +29,7 @@ let net = null;
 let selfId = null;
 let lastLanPhase = null;
 let lanMatchUnlocked = false;
+let lanFocus = null;
 
 const ui = new UI(state, {
   onStartSolo: (diffId) => startSolo(diffId),
@@ -253,6 +254,7 @@ async function joinLan(rawName) {
     mode = 'lan';
     lastLanPhase = null;
     lanMatchUnlocked = false;
+    lanFocus = null;
     effects.reset();
     audio.ensure();
     audio.ui();
@@ -344,6 +346,7 @@ function handleLanDisconnected() {
   net = null;
   selfId = null;
   lastLanPhase = null;
+  lanFocus = null;
   mode = 'menu';
   audio.stopMusic();
   ui.showMenu();
@@ -366,6 +369,7 @@ async function leaveLan() {
   net = null;
   selfId = null;
   lastLanPhase = null;
+  lanFocus = null;
   mode = 'menu';
   audio.stopMusic();
   effects.reset();
@@ -437,13 +441,18 @@ function buildLanView() {
     };
   });
   let foods = [];
+  const me = snapshot.players.find((p) => p.id === selfId);
   if (lanes) {
-    const me = snapshot.players.find((p) => p.id === selfId);
     if (me && me.food) foods = [me.food];
   } else {
     foods = snapshot.foods || [];
   }
-  return { grid: snapshot.grid || 28, snakes, foods };
+  // 大战场镜头跟随自己的蛇；死亡等待重生时停在最后一次位置
+  const selfSnake = relevant.find((player) => player.id === selfId);
+  if (selfSnake && selfSnake.segments && selfSnake.segments.length > 0) {
+    lanFocus = selfSnake.segments[0];
+  }
+  return { grid: snapshot.grid || 56, snakes, foods, follow: true, focus: lanFocus };
 }
 
 // ---------- 主循环 ----------

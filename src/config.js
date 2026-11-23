@@ -46,7 +46,9 @@ export const FOOD_TYPES = ['normal', 'gold', 'shield', 'slow', 'double'];
 
 // 联机
 export const MP = {
-  grid: 28,
+  grid: 56,              // 大战场：面积约为原来的 4 倍
+  cameraFollowHalf: 14,  // 跟随镜头可见半宽（约 28 格视野）
+  foodSpawnRadius: 12,   // 共享模式新食物围绕玩家的刷新半径
   maxPlayers: 8,
   tickMs: 60,            // 服务端模拟步长
   snapshotMs: 66,        // 快照广播间隔（约 15Hz）

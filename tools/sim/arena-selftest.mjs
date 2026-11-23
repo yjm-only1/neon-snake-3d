@@ -196,13 +196,28 @@ console.log('8. 各自竞速');
   ok(arena.rhythmId === 'timed', '各自竞速固定限时节奏');
   ok(arena.sharedFoods.length === 0, '各自模式无共享食物池');
   const [p1, p2] = ids.map((id) => arena.players.get(id));
-  ok(p1.foods.length === 1 && p2.foods.length === 1, '每人各自一份食物');
+  ok(p1.foods.length === 2 && p2.foods.length === 2, '每人各自两份食物');
+  ok(p1.segments[0].x === p2.segments[0].x && p1.segments[0].y === p2.segments[0].y, '两人在各自棋盘同点出生');
   const s1 = arena.deterministicSpawn(0);
   const s2 = arena.deterministicSpawn(0);
   ok(s1.x === s2.x && s1.y === s2.y && s1.type === s2.type, '同序号食物序列一致');
-  const p1Food = p1.foods[0];
-  const p2Food = p2.foods[0];
-  ok(p1Food.x === p2Food.x && p1Food.y === p2Food.y && p1Food.type === p2Food.type, '开局食物位置和类型相同');
+  const sameFoods = p1.foods.every((food, index) => {
+    const other = p2.foods[index];
+    return other && food.x === other.x && food.y === other.y && food.type === other.type;
+  });
+  ok(sameFoods, '开局两份食物的位置和类型完全相同');
+}
+
+console.log('8.5 大战场与食物刷新');
+{
+  ok(MP.grid === 56, '联机棋盘为 56x56（面积 4 倍）');
+  const { arena } = started(2, { mode: 'race' });
+  const heads = [...arena.players.values()].map((p) => p.segments[0]);
+  const distances = arena.sharedFoods.map((food) =>
+    Math.min(...heads.map((head) => Math.hypot(food.x - head.x, food.y - head.y))));
+  const maxDistance = Math.max(...distances);
+  ok(maxDistance <= MP.foodSpawnRadius + 1.5, '共享模式食物围绕玩家刷新', `max=${maxDistance.toFixed(1)}`);
+  ok(arena.sharedFoods.length >= 3, '大图食物数量随人数上调', `foods=${arena.sharedFoods.length}`);
 }
 
 // ---------- 9. 限时结束与排名 ----------

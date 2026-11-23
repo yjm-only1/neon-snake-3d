@@ -1,6 +1,6 @@
 // Three.js 3D 渲染：透视斜俯视 / 霓虹玻璃平台 / 胶囊连体蛇 / 光环果实 / 粒子 / 三套皮肤
 import * as THREE from '../vendor/three.module.js';
-import { COLORS, FOOD_DEFS, THEMES } from './config.js';
+import { COLORS, FOOD_DEFS, THEMES, MP } from './config.js';
 
 function hexRgba(hex, alpha) {
   const value = hex.replace('#', '');
@@ -119,6 +119,10 @@ export class Renderer3D {
 
     this.camera = new THREE.PerspectiveCamera(42, 1, 0.1, 320);
     this.cameraDistance = 40;
+    this.followMode = false;
+    this.focus = new THREE.Vector3();
+    this.aspect = 1;
+    this.lastNow = 0;
     this.grid = 0;
     this.shadowGeometry = new THREE.CircleGeometry(0.42, 18);
     this.boardGroup = null;
@@ -241,24 +245,54 @@ export class Renderer3D {
     this.renderer.setSize(width, height, false);
     this.canvas.style.width = `${width}px`;
     this.canvas.style.height = `${height}px`;
-    const aspect = width / Math.max(1, height);
-    const g = this.grid || 24;
-    const halfBoard = g / 2 + 1.8;
-    const tan = Math.tan((this.camera.fov * Math.PI / 180) / 2);
-    const distV = (halfBoard * 0.8) / tan;
-    const distH = halfBoard / (tan * aspect);
-    this.cameraDistance = Math.max(distV, distH) * 1.12;
-    this.camera.aspect = aspect;
-    this.camera.updateProjectionMatrix();
-    this.updateCamera(0);
+    this.aspect = width / Math.max(1, height);
+    this.refreshProjection();
+    if (!this.followMode) this.updateCamera(null, 0, performance.now());
   }
 
-  updateCamera(shake) {
+  refreshProjection() {
+    const g = this.grid || 24;
+    const halfBoard = g / 2 + 1.8;
+    const viewHalf = this.followMode ? Math.min(halfBoard, MP.cameraFollowHalf) : halfBoard;
+    const tan = Math.tan((this.camera.fov * Math.PI / 180) / 2);
+    const distV = (viewHalf * 0.8) / tan;
+    const distH = viewHalf / (tan * this.aspect);
+    this.cameraDistance = Math.max(distV, distH) * 1.12;
+    this.camera.aspect = this.aspect;
+    this.camera.updateProjectionMatrix();
+  }
+
+  updateCamera(focusWorld, shake, now) {
+    const tan = Math.tan((this.camera.fov * Math.PI / 180) / 2);
+    let targetX = 0;
+    let targetZ = 0;
+    if (this.followMode && focusWorld) {
+      const half = (this.grid || 24) / 2;
+      const vert = this.cameraDistance * tan;
+      const horz = vert * this.aspect;
+      const clampX = Math.max(0, half - Math.min(half, horz * 0.92));
+      const clampZ = Math.max(0, half - Math.min(half, vert * 1.35 * 0.92));
+      targetX = Math.max(-clampX, Math.min(clampX, focusWorld.x));
+      targetZ = Math.max(-clampZ, Math.min(clampZ, focusWorld.z));
+      const dt = this.lastNow ? Math.min(0.1, Math.max(0, (now - this.lastNow) / 1000)) : 0.016;
+      const k = 1 - Math.exp(-dt * 10);
+      if (Math.abs(targetX - this.focus.x) > 12 || Math.abs(targetZ - this.focus.z) > 12) {
+        this.focus.x = targetX;
+        this.focus.z = targetZ;
+      } else {
+        this.focus.x += (targetX - this.focus.x) * k;
+        this.focus.z += (targetZ - this.focus.z) * k;
+      }
+    } else {
+      this.focus.x += (0 - this.focus.x) * 0.25;
+      this.focus.z += (0 - this.focus.z) * 0.25;
+    }
+    this.lastNow = now || this.lastNow;
     const dist = this.cameraDistance || 40;
     const jitterX = shake > 0.2 ? (Math.random() * 2 - 1) * shake * 0.05 : 0;
     const jitterZ = shake > 0.2 ? (Math.random() * 2 - 1) * shake * 0.05 : 0;
-    this.camera.position.set(jitterX, dist * 0.74, dist * 0.72 + jitterZ);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.set(this.focus.x + jitterX, dist * 0.74, this.focus.z + dist * 0.72 + jitterZ);
+    this.camera.lookAt(this.focus.x, 0, this.focus.z);
   }
 
   makeBoardTexture(grid) {
@@ -277,11 +311,12 @@ export class Renderer3D {
     ctx.fillRect(0, 0, size, size);
     if (this.settings.grid) {
       const step = size / grid;
+      const dotRadius = grid > 40 ? 1.5 : 2.2;
       ctx.fillStyle = hexRgba(this.theme.grid, 0.55);
       for (let i = 0; i <= grid; i++) {
         for (let j = 0; j <= grid; j++) {
           ctx.beginPath();
-          ctx.arc(i * step, j * step, 2.2, 0, Math.PI * 2);
+          ctx.arc(i * step, j * step, dotRadius, 0, Math.PI * 2);
           ctx.fill();
         }
       }
@@ -623,8 +658,15 @@ export class Renderer3D {
   }
 
   renderScene(view, effects, now) {
+    const followCell = view.follow && view.focus ? view.focus : null;
+    const wantFollow = !!followCell;
+    if (wantFollow !== this.followMode) {
+      this.followMode = wantFollow;
+      this.refreshProjection();
+    }
     this.setGrid(view.grid || 24);
-    this.updateCamera(effects.shake);
+    const focusWorld = followCell ? this.worldPos(followCell[0], followCell[1]) : null;
+    this.updateCamera(focusWorld, effects.shake, now);
     if (this.menuOrbs) {
       for (const orb of this.menuOrbs) orb.mesh.visible = false;
     }
@@ -666,8 +708,12 @@ export class Renderer3D {
   }
 
   renderMenu(now, effects) {
+    if (this.followMode) {
+      this.followMode = false;
+      this.refreshProjection();
+    }
     this.setGrid(24);
-    this.updateCamera(0);
+    this.updateCamera(null, 0, now);
     for (const id of this.snakes.keys()) this.hideSnake(id);
     this.syncFoods([], now);
     this.ensureMenuOrbs();

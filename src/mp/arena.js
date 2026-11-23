@@ -130,7 +130,10 @@ export class Arena {
       laneSeq: 0,
     };
     this.placeSnake(player);
-    if (!this.mode.shared) this.spawnLaneFood(player);
+    if (!this.mode.shared) {
+      this.spawnLaneFood(player);
+      this.spawnLaneFood(player);
+    }
     return player;
   }
 
@@ -156,7 +159,10 @@ export class Arena {
       player.foods = [];
       player.laneSeq = 0;
       this.placeSnake(player);
-      if (!this.mode.shared) this.spawnLaneFood(player);
+      if (!this.mode.shared) {
+        this.spawnLaneFood(player);
+        this.spawnLaneFood(player);
+      }
     }
     if (this.mode.shared) {
       const count = this.foodTargetCount();
@@ -169,7 +175,7 @@ export class Arena {
   }
 
   foodTargetCount() {
-    return Math.max(2, Math.min(6, this.players.size + 1));
+    return Math.max(3, Math.min(10, this.players.size * 2));
   }
 
   beginPlaying() {
@@ -348,7 +354,8 @@ export class Arena {
   }
 
   placeSnake(player) {
-    const cell = this.findSpawnCell();
+    // 各自竞速模式：所有人在自己棋盘的中心同点出生，配合同种子食物保证完全公平
+    const cell = this.mode.shared ? this.findSpawnCell() : this.centerCell();
     player.segments = [];
     for (let i = 0; i < START_LENGTH; i++) {
       player.segments.push({ x: cell.x - i, y: cell.y });
@@ -356,6 +363,10 @@ export class Arena {
     player.dir = { ...DIRS.right };
     player.pendingDirs = [];
     player.alive = true;
+  }
+
+  centerCell() {
+    return { x: Math.floor(this.grid / 2), y: Math.floor(this.grid / 2) };
   }
 
   findSpawnCell() {
@@ -473,7 +484,7 @@ export class Arena {
     for (let attempt = 0; attempt < 120; attempt++) {
       const index = player.laneSeq++;
       const spawn = this.deterministicSpawn(index);
-      if (this.isFreeForSpawn(spawn.x, spawn.y) && !this.foodOccupied(player, spawn.x, spawn.y)) {
+      if (this.isFreeOnBoard(player, spawn.x, spawn.y) && !this.foodOccupied(player, spawn.x, spawn.y)) {
         const def = FOOD_DEFS[spawn.type];
         player.foods.push({
           id: `${player.id}-${index}`,
@@ -489,8 +500,11 @@ export class Arena {
 
   deterministicSpawn(index) {
     const rng = mulberry32((this.seed ^ Math.imul(index + 1, 0x9e3779b9)) >>> 0);
-    const x = Math.floor(rng() * this.grid);
-    const y = Math.floor(rng() * this.grid);
+    // 限制在棋盘中部区域，配合跟随镜头保证食物可达可见
+    const center = Math.floor(this.grid / 2);
+    const range = Math.max(6, Math.floor(this.grid * 0.32));
+    const x = Math.max(1, Math.min(this.grid - 2, center + Math.floor((rng() * 2 - 1) * range)));
+    const y = Math.max(1, Math.min(this.grid - 2, center + Math.floor((rng() * 2 - 1) * range)));
     let total = 0;
     for (const id of FOOD_TYPES) total += FOOD_DEFS[id].weight;
     let roll = rng() * total;
@@ -509,7 +523,31 @@ export class Arena {
     return false;
   }
 
+  isFreeOnBoard(player, x, y) {
+    if (x < 0 || y < 0 || x >= this.grid || y >= this.grid) return false;
+    for (const seg of player.segments) {
+      if (seg.x === x && seg.y === y) return false;
+    }
+    return true;
+  }
+
   findFoodCell() {
+    // 大战场：新食物围绕一名存活玩家刷新，保证跟随视角内始终有目标
+    const alive = [...this.players.values()].filter((p) => p.alive && p.segments.length > 0);
+    const anchor = alive.length > 0 ? alive[Math.floor(this.rng() * alive.length)] : null;
+    const center = anchor ? anchor.segments[0] : this.centerCell();
+    for (let attempt = 0; attempt < 400; attempt++) {
+      const radius = 5 + this.rng() * Math.max(1, MP.foodSpawnRadius - 5);
+      const angle = this.rng() * Math.PI * 2;
+      const x = Math.max(1, Math.min(this.grid - 2, Math.round(center.x + Math.cos(angle) * radius)));
+      const y = Math.max(1, Math.min(this.grid - 2, Math.round(center.y + Math.sin(angle) * radius)));
+      if (!this.isFreeForSpawn(x, y)) continue;
+      let occupied = false;
+      for (const food of this.sharedFoods) {
+        if (food.x === x && food.y === y) { occupied = true; break; }
+      }
+      if (!occupied) return { x, y };
+    }
     for (let attempt = 0; attempt < 400; attempt++) {
       const x = Math.floor(this.rng() * this.grid);
       const y = Math.floor(this.rng() * this.grid);
