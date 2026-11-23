@@ -507,6 +507,7 @@ let lastTime = performance.now();
 function frame(now) {
   const dtSec = Math.min(0.05, Math.max(0, (now - lastTime) / 1000));
   lastTime = now;
+  renderer.noteFrame(dtSec * 1000, now);
   effects.update(dtSec);
 
   if (mode === 'solo' && game) {

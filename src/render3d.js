@@ -131,6 +131,9 @@ export class Renderer3D {
     this.focus = new THREE.Vector3();
     this.aspect = 1;
     this.lastNow = 0;
+    this.dynamicScale = 1;
+    this.frameAvgMs = 16.7;
+    this.lastScaleChangeAt = 0;
     this.grid = 0;
     this.shadowGeometry = new THREE.CircleGeometry(0.42, 18);
     this.boardGroup = null;
@@ -178,7 +181,23 @@ export class Renderer3D {
     const maxPixels = low ? 1.6e6 : 3.2e6; // 上限，避免高分屏/手机的填充压力
     const pixels = width * height * ratio * ratio;
     if (pixels > maxPixels) ratio *= Math.sqrt(maxPixels / pixels);
-    return Math.max(0.75, ratio);
+    return Math.max(0.5, ratio * this.dynamicScale);
+  }
+
+  // 按实际帧耗时自适应渲染分辨率，弱机型优先保帧率
+  noteFrame(dtMs, now) {
+    if (!(dtMs > 0)) return;
+    this.frameAvgMs = this.frameAvgMs * 0.9 + Math.min(dtMs, 100) * 0.1;
+    if (now - this.lastScaleChangeAt < 1200) return;
+    if (this.frameAvgMs > 23 && this.dynamicScale > 0.62) {
+      this.dynamicScale = Math.max(0.62, this.dynamicScale * 0.86);
+      this.lastScaleChangeAt = now;
+      this.renderer.setPixelRatio(this.computePixelRatio());
+    } else if (this.frameAvgMs < 15 && this.dynamicScale < 1) {
+      this.dynamicScale = Math.min(1, this.dynamicScale * 1.05);
+      this.lastScaleChangeAt = now;
+      this.renderer.setPixelRatio(this.computePixelRatio());
+    }
   }
 
   applyQuality(qualitySetting) {
