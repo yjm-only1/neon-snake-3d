@@ -156,6 +156,23 @@ async function main() {
     const savedTheme = JSON.parse(await evaluate(cdp, 'localStorage.getItem("neonSnake3D.v1")')).settings.theme;
     ok(savedTheme === 'neon', '皮肤设置已持久化', savedTheme);
 
+    await clickReal(cdp, '#btnSettings');
+    await evaluate(cdp, `(() => {
+      const el = document.getElementById('setQuality');
+      el.value = 'low';
+      el.dispatchEvent(new Event('change'));
+    })()`);
+    await sleep(400);
+    const savedQuality = JSON.parse(await evaluate(cdp, 'localStorage.getItem("neonSnake3D.v1")')).settings.quality;
+    ok(savedQuality === 'low', '画质设置已持久化', savedQuality);
+    await evaluate(cdp, `(() => {
+      const el = document.getElementById('setQuality');
+      el.value = 'high';
+      el.dispatchEvent(new Event('change'));
+    })()`);
+    await sleep(300);
+    await clickReal(cdp, '#btnSetClose');
+
     console.log('4. 单人 3D 对局');
     await clickReal(cdp, '[data-diff="classic"]');
     ok(await evaluate(cdp, '!document.getElementById("soloHud").classList.contains("hidden")'), 'HUD 显示');

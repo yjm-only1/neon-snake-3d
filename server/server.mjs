@@ -5,7 +5,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import crypto from 'node:crypto';
+import { exec } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import qrcode from '../vendor/qr/qrcode.mjs';
 import { Arena } from '../src/mp/arena.js';
 import { MP } from '../src/config.js';
 
@@ -145,7 +147,24 @@ async function handle(req, res) {
       maxPlayers: MP.maxPlayers,
       players: arena.players.size,
       phase: arena.phase,
+      port: PORT,
+      lanUrls: lanUrls(PORT),
     });
+  }
+
+  if (pathname === '/api/qr' && req.method === 'GET') {
+    const text = url.searchParams.get('text') || '';
+    if (!text) return sendJson(res, 400, { error: '缺少 text' });
+    const qr = qrcode(0, 'M');
+    qr.addData(text);
+    qr.make();
+    const svg = qr.createSvgTag({ cellSize: 6, margin: 3 });
+    res.writeHead(200, {
+      'Content-Type': 'image/svg+xml; charset=utf-8',
+      'Cache-Control': 'no-store',
+    });
+    res.end(svg);
+    return;
   }
 
   if (pathname === '/api/join' && req.method === 'POST') {
@@ -281,6 +300,16 @@ setInterval(() => {
   }
 }, 5000);
 
+function openBrowser(target) {
+  if (process.argv.includes('--no-open') || !process.stdout.isTTY) return;
+  const command = process.platform === 'win32'
+    ? `cmd /c start "" "${target}"`
+    : process.platform === 'darwin'
+      ? `open "${target}"`
+      : `xdg-open "${target}"`;
+  exec(command, () => { /* 打不开浏览器不影响房间运行 */ });
+}
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log('');
   console.log('  霓虹贪吃蛇 3D · 局域网房间');
@@ -289,7 +318,8 @@ server.listen(PORT, '0.0.0.0', () => {
   const urls = lanUrls(PORT);
   for (const url of urls) console.log(`  局域网访问: ${url}`);
   if (urls.length === 0) console.log('  未找到局域网 IPv4 地址，请检查网络连接');
-  console.log('  同一 Wi-Fi / 局域网内的朋友用上面的地址打开即玩');
+  console.log('  在同一 Wi-Fi 下，朋友扫码或输入上面的地址即可加入');
   console.log('  按 Ctrl+C 关闭服务器');
   console.log('');
+  openBrowser(`http://localhost:${PORT}`);
 });

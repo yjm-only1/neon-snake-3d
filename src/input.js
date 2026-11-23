@@ -24,6 +24,15 @@ export class InputController {
       surface.addEventListener('touchstart', this.onTouchStart, { passive: true });
       surface.addEventListener('touchend', this.onTouchEnd, { passive: false });
     }
+    const dpad = document.getElementById('dpad');
+    if (dpad) {
+      dpad.addEventListener('pointerdown', (event) => {
+        const button = event.target.closest('[data-dir]');
+        if (!button) return;
+        event.preventDefault();
+        this.handlers.onDirection(button.dataset.dir);
+      }, { passive: false });
+    }
   }
 
   onKeyDown(event) {

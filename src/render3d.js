@@ -109,8 +109,9 @@ export class Renderer3D {
   constructor(canvas, settings) {
     this.canvas = canvas;
     this.settings = settings;
+    this.quality = settings.quality === 'low' ? 'low' : 'high';
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, this.quality === 'low' ? 1 : 2));
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.theme = THEMES[settings.theme] || THEMES.neon;
@@ -158,6 +159,23 @@ export class Renderer3D {
     this.fillLight = new THREE.DirectionalLight(new THREE.Color(this.theme.fill), 0.8);
     this.fillLight.position.set(-16, 14, -12);
     this.scene.add(this.fillLight);
+  }
+
+  applyQuality(quality) {
+    const next = quality === 'low' ? 'low' : 'high';
+    if (next === this.quality) return;
+    this.quality = next;
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, next === 'low' ? 1 : 2));
+    if (this.dust) this.dust.visible = next !== 'low';
+    if (this.boardHalo) this.boardHalo.visible = next !== 'low';
+    for (const entry of this.snakes.values()) {
+      if (entry.headShadow) entry.headShadow.visible = next !== 'low';
+    }
+    for (const entry of this.foods.values()) {
+      if (entry.shadow) entry.shadow.visible = next !== 'low';
+      if (entry.ring) entry.ring.visible = next !== 'low';
+    }
+    this.resize();
   }
 
   applyTheme(themeId, force = false) {
@@ -223,6 +241,7 @@ export class Renderer3D {
     });
     this.dust = new THREE.Points(geometry, material);
     this.dust.frustumCulled = false;
+    this.dust.visible = this.quality !== 'low';
     this.scene.add(this.dust);
   }
 
@@ -372,6 +391,8 @@ export class Renderer3D {
     );
     halo.rotation.x = -Math.PI / 2;
     halo.position.y = -0.06;
+    halo.visible = this.quality !== 'low';
+    this.boardHalo = halo;
     group.add(halo);
 
     const borderMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(this.theme.border), transparent: true, opacity: 0.95 });
@@ -475,7 +496,7 @@ export class Renderer3D {
       }
       const material = new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, depthTest: false });
       const sprite = new THREE.Sprite(material);
-      const worldHeight = 1.0;
+      const worldHeight = 0.9;
       sprite.scale.set(worldHeight * aspect, worldHeight, 1);
       sprite.renderOrder = 20;
       entry.labelSprite = sprite;
@@ -483,7 +504,7 @@ export class Renderer3D {
     }
     const head = snake.segments[0];
     const pos = this.worldPos(head[0], head[1]);
-    entry.labelSprite.position.set(pos.x, 2.1, pos.z);
+    entry.labelSprite.position.set(pos.x, 2.0, pos.z);
     entry.labelSprite.visible = true;
   }
 
@@ -535,7 +556,7 @@ export class Renderer3D {
     entry.headGroup.rotation.y = Math.atan2(dir[0], dir[1]);
     entry.glow.visible = true;
     entry.glow.position.set(headPos.x, 0.12, headPos.z);
-    entry.headShadow.visible = true;
+    entry.headShadow.visible = this.quality !== 'low';
     entry.headShadow.position.set(headPos.x, 0.014, headPos.z);
     this.applyLabel(entry, snake);
   }
@@ -595,6 +616,9 @@ export class Renderer3D {
       entry.mesh.rotation.x = Math.sin(now / 760 + phase) * 0.22;
       entry.glow.position.set(pos.x, bob, pos.z);
       entry.shadow.position.set(pos.x, 0.013, pos.z);
+      const extras = this.quality !== 'low';
+      entry.shadow.visible = extras;
+      entry.ring.visible = extras;
       entry.ring.position.set(pos.x, bob, pos.z);
       entry.ring.rotation.x = Math.PI / 2 + Math.sin(now / 900 + phase) * 0.25;
       entry.ring.rotation.y = now / 800 + phase;

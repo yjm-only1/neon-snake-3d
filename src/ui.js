@@ -2,7 +2,7 @@
 import {
   DIFFICULTY_LIST, DIFFICULTIES, ACHIEVEMENTS,
   MP_MODES, MP_MODE_LIST, MP_RHYTHMS, MP_RHYTHM_LIST,
-  AVATARS, PLAYER_COLORS, THEMES, THEME_LIST, FOOD_DEFS,
+  AVATARS, PLAYER_COLORS, THEMES, THEME_LIST, FOOD_DEFS, QUALITY_LIST,
 } from './config.js';
 
 const NAME_STORAGE_KEY = 'neonSnake3D.name';
@@ -30,6 +30,7 @@ export class UI {
     this.lobbySignature = '';
     this.endSignature = '';
     this.profileDraft = { ...state.profile };
+    this.inviteReady = false;
     this.el = {};
     const ids = [
       'menu', 'diffRow', 'menuStats', 'btnLan', 'btnAchievements', 'btnSettings', 'btnHelp',
@@ -40,6 +41,7 @@ export class UI {
       'lanOverlay', 'lanConnecting', 'lanUnavailable', 'btnLanUnavailableClose',
       'lanForm', 'lanName', 'btnLanJoin', 'btnLanBack',
       'lanLobby', 'lanLobbyCount', 'lanHostTag', 'lanPlayerList',
+      'lanInvite', 'lanQr', 'lanUrl', 'btnCopyUrl',
       'selMode', 'selRhythm', 'selDifficulty', 'btnLanStart', 'btnLanLeave2', 'lanHint',
       'lanEndOverlay', 'lanWinBanner', 'lanRanking', 'btnLanAgain', 'btnLanEndLeave', 'lanEndHint',
       'pauseOverlay', 'btnResume', 'btnRestart', 'btnQuit',
@@ -47,7 +49,7 @@ export class UI {
       'achievementsOverlay', 'achCount', 'achList', 'btnAchClose',
       'profileOverlay', 'btnProfile', 'profileAvatarPreview', 'profileNamePreview', 'profileName',
       'avatarPicker', 'colorPicker', 'btnProfileSave', 'btnProfileClose', 'profileStats',
-      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'setTheme', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
+      'settingsOverlay', 'setSfx', 'setMusic', 'setGrid', 'setTheme', 'setQuality', 'btnSetClose', 'helpOverlay', 'btnHelpClose',
       'flashLayer', 'toastLayer',
     ];
     for (const id of ids) this.el[id] = document.getElementById(id);
@@ -70,6 +72,9 @@ export class UI {
       .join('');
     this.el.setTheme.innerHTML = THEME_LIST
       .map((id) => `<option value="${id}">${THEMES[id].name}</option>`)
+      .join('');
+    this.el.setQuality.innerHTML = QUALITY_LIST
+      .map((item) => `<option value="${item.id}">${item.name}</option>`)
       .join('');
   }
 
@@ -126,6 +131,10 @@ export class UI {
       this.state.settings.theme = this.el.setTheme.value;
       h.onSettingsChanged();
     });
+    this.el.setQuality.addEventListener('change', () => {
+      this.state.settings.quality = this.el.setQuality.value;
+      h.onSettingsChanged();
+    });
   }
 
   buildDifficultyCards() {
@@ -162,6 +171,7 @@ export class UI {
     this.el.setMusic.checked = this.state.settings.music;
     this.el.setGrid.checked = this.state.settings.grid;
     this.el.setTheme.value = this.state.settings.theme;
+    this.el.setQuality.value = this.state.settings.quality;
   }
 
   showMenu() {
@@ -343,6 +353,7 @@ export class UI {
     setHidden(this.el.countdownOverlay, true);
     for (const section of ['lanConnecting', 'lanUnavailable', 'lanForm']) setHidden(this.el[section], true);
     setHidden(this.el.lanLobby, false);
+    this.ensureInvite();
 
     const signature = JSON.stringify({
       players: snapshot.players.map((p) => [p.id, p.name, p.color]),
@@ -372,6 +383,60 @@ export class UI {
     this.el.selDifficulty.disabled = !isHost;
     setHidden(this.el.btnLanStart, !isHost);
     this.el.lanHint.textContent = isHost ? '选择玩法与节奏后点击开始' : '等待房主开始…';
+  }
+
+  async ensureInvite() {
+    if (this.inviteReady) return;
+    this.inviteReady = true;
+    try {
+      const res = await fetch('/api/config', { cache: 'no-store' });
+      const info = await res.json();
+      const host = location.hostname;
+      const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '[::1]';
+      let inviteUrl = location.origin;
+      if (isLocal) {
+        if (info.lanUrls && info.lanUrls.length > 0) {
+          inviteUrl = info.lanUrls[0];
+        } else {
+          this.el.lanUrl.textContent = '未检测到局域网地址，请检查 Wi-Fi 连接';
+          setHidden(this.el.lanQr, true);
+          setHidden(this.el.btnCopyUrl, true);
+          return;
+        }
+      }
+      this.el.lanUrl.textContent = inviteUrl;
+      this.el.lanQr.src = `/api/qr?text=${encodeURIComponent(inviteUrl)}`;
+      this.el.btnCopyUrl.addEventListener('click', () => this.copyText(inviteUrl));
+    } catch (err) {
+      this.el.lanUrl.textContent = '邀请信息获取失败';
+    }
+  }
+
+  copyText(text) {
+    const done = () => this.toast('邀请链接已复制', 'hint');
+    const fail = () => this.toast('复制失败，请手动选择链接复制', 'error');
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(done).catch(() => this.fallbackCopy(text, done, fail));
+      return;
+    }
+    this.fallbackCopy(text, done, fail);
+  }
+
+  fallbackCopy(text, done, fail) {
+    try {
+      const area = document.createElement('textarea');
+      area.value = text;
+      area.style.position = 'fixed';
+      area.style.opacity = '0';
+      document.body.appendChild(area);
+      area.select();
+      const ok = document.execCommand('copy');
+      area.remove();
+      if (ok) done();
+      else fail();
+    } catch (err) {
+      fail();
+    }
   }
 
   renderCountdown(snapshot, selfId) {

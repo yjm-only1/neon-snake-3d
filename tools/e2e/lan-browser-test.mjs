@@ -89,7 +89,7 @@ async function main() {
   fs.rmSync(PROFILE_DIR, { recursive: true, force: true });
   fs.mkdirSync(path.join(ROOT, 'Temp'), { recursive: true });
 
-  const server = spawn(process.execPath, ['server/server.mjs', String(PORT)], { cwd: ROOT, stdio: 'ignore' });
+  const server = spawn(process.execPath, ['server/server.mjs', String(PORT), '--no-open'], { cwd: ROOT, stdio: 'ignore' });
   const chrome = spawn(CHROME, [
     '--headless=new', '--no-first-run', '--hide-scrollbars',
     '--enable-unsafe-swiftshader', '--use-angle=swiftshader',
@@ -134,6 +134,8 @@ async function main() {
     const second = await api('/api/join', { name: '阿强', avatar: '🐼', color: '#ff9f43' });
     ok(second.status === 200, '第二名玩家加入');
     ok(await waitFor(cdp, 'document.querySelectorAll(".lan-player-row").length === 2', 5000), '大厅显示两名玩家');
+    ok(await waitFor(cdp, 'document.getElementById("lanQr").src.includes("/api/qr")', 5000), '大厅显示邀请二维码');
+    ok(await evaluate(cdp, 'document.getElementById("lanUrl").textContent.startsWith("http")'), '大厅显示邀请地址');
 
     console.log('3. 房主配置与开局');
     await evaluate(cdp, `(() => {

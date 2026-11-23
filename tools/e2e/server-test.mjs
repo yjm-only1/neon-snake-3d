@@ -88,7 +88,7 @@ async function waitFor(fn, timeoutMs = 10000, interval = 100) {
 }
 
 async function main() {
-  const server = spawn(process.execPath, ['server/server.mjs', String(PORT)], {
+  const server = spawn(process.execPath, ['server/server.mjs', String(PORT), '--no-open'], {
     cwd: ROOT,
     stdio: 'ignore',
   });
@@ -103,6 +103,10 @@ async function main() {
     ok(ready, '服务器启动并可访问 /api/config');
     const config = await (await fetch(BASE + '/api/config')).json();
     ok(config.ok === true && config.maxPlayers >= 2, '配置接口返回房间信息');
+    ok(Array.isArray(config.lanUrls), '配置接口返回局域网地址列表');
+    const qrRes = await fetch(`${BASE}/api/qr?text=${encodeURIComponent('http://192.168.1.5:8787')}`);
+    const qrText = await qrRes.text();
+    ok(qrRes.ok && qrText.includes('<svg'), '邀请二维码接口返回 SVG');
 
     console.log('2. 加入房间');
     const p1 = await api('/api/join', { name: '小明' });

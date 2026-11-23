@@ -1,5 +1,8 @@
 // localStorage 持久化：每档最高分 / 生涯统计 / 成就 / 设置 / 个人资料
-import { STORAGE_KEY, DIFFICULTY_LIST, SETTINGS_DEFAULTS, PROFILE_DEFAULTS, AVATARS, PLAYER_COLORS, THEME_LIST } from './config.js';
+import {
+  STORAGE_KEY, DIFFICULTY_LIST, SETTINGS_DEFAULTS, PROFILE_DEFAULTS,
+  AVATARS, PLAYER_COLORS, THEME_LIST, QUALITY_LIST,
+} from './config.js';
 
 function defaultState() {
   const bests = {};
@@ -38,6 +41,7 @@ export function loadState() {
       if (typeof cfg[key] === 'boolean') state.settings[key] = cfg[key];
     }
     if (THEME_LIST.includes(cfg.theme)) state.settings.theme = cfg.theme;
+    if (QUALITY_LIST.some((item) => item.id === cfg.quality)) state.settings.quality = cfg.quality;
     const profile = saved.profile || {};
     if (typeof profile.name === 'string' && profile.name.trim().length > 0) {
       state.profile.name = profile.name.trim().slice(0, 8);

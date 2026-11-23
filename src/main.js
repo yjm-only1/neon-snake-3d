@@ -15,6 +15,11 @@ const audio = new AudioEngine(state.settings);
 const effects = new Effects();
 const canvas = document.getElementById('game');
 const renderer = new Renderer3D(canvas, state.settings);
+const dpadEl = document.getElementById('dpad');
+document.body.classList.toggle(
+  'touch-device',
+  window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0,
+);
 
 let game = null;
 let mode = 'menu'; // menu | solo | soloPaused | soloDying | soloGameOver | lan
@@ -44,6 +49,7 @@ const ui = new UI(state, {
   onQuit: () => quitToMenu(),
   onConfirm: () => confirmAction(),
   onSettingsChanged: () => {
+    renderer.applyQuality(state.settings.quality);
     renderer.applyTheme(state.settings.theme, true);
     audio.setSettings(state.settings);
     if (state.settings.music && (mode === 'solo' || (mode === 'lan' && net && net.snapshot && net.snapshot.phase === 'playing'))) {
@@ -484,6 +490,10 @@ function frame(now) {
     renderer.renderMenu(now, effects);
   }
 
+  if (dpadEl) {
+    const lanPlaying = mode === 'lan' && net && net.snapshot && net.snapshot.phase === 'playing';
+    dpadEl.classList.toggle('visible', mode === 'solo' || lanPlaying);
+  }
   ui.setFlash(effects.flash, effects.flashColor);
   requestAnimationFrame(frame);
 }

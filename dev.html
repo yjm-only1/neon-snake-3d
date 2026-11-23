@@ -106,6 +106,15 @@
           <span id="lanHostTag" class="host-tag hidden">你是房主</span>
         </div>
         <div id="lanPlayerList" class="lan-player-list"></div>
+        <div id="lanInvite" class="lan-invite">
+          <img id="lanQr" class="lan-qr" alt="房间二维码">
+          <div class="lan-invite-side">
+            <span class="field-label">邀请朋友（同一 Wi-Fi）</span>
+            <span id="lanUrl" class="lan-url">—</span>
+            <button id="btnCopyUrl" class="ghost-btn small-btn">复制链接</button>
+            <span class="footnote dim">手机扫码，或浏览器输入上面的地址后点「局域网联机」</span>
+          </div>
+        </div>
         <div class="lobby-config">
           <label class="field-row"><span>玩法</span><select id="selMode"></select></label>
           <label class="field-row"><span>节奏</span><select id="selRhythm"></select></label>
@@ -191,6 +200,7 @@
       <label class="toggle-row"><span>背景音乐</span><input type="checkbox" id="setMusic"></label>
       <label class="toggle-row"><span>网格点阵</span><input type="checkbox" id="setGrid"></label>
       <label class="toggle-row"><span>皮肤</span><select id="setTheme" class="theme-select"></select></label>
+      <label class="toggle-row"><span>画质</span><select id="setQuality" class="theme-select"></select></label>
       <button id="btnSetClose" class="ghost-btn">关闭</button>
     </div>
   </div>
@@ -207,10 +217,18 @@
         <li>局域网联机：同一 Wi-Fi 下由一台电脑开房间，最多 8 人</li>
         <li>联机玩法：抢食竞速（互不伤害）/ 同场对抗（撞蛇身死）/ 各自竞速（同种子食物）</li>
         <li>联机节奏：限时 3 分钟（死亡 3 秒重生）/ 生存淘汰（最后存活者获胜）</li>
-        <li>键盘：方向键 / WASD 转向，空格暂停，M 静音；手机：滑动转向</li>
+        <li>设置里可切换皮肤（霓虹 / 极光 / 熔岩）与画质（高清 / 流畅）</li>
+        <li>键盘：方向键 / WASD 转向，空格暂停，M 静音；手机：滑动屏幕转向</li>
       </ul>
       <button id="btnHelpClose" class="ghost-btn">知道了</button>
     </div>
+  </div>
+
+  <div id="dpad" class="dpad">
+    <button class="dpad-btn dpad-up" data-dir="up" aria-label="上">▲</button>
+    <button class="dpad-btn dpad-left" data-dir="left" aria-label="左">◀</button>
+    <button class="dpad-btn dpad-right" data-dir="right" aria-label="右">▶</button>
+    <button class="dpad-btn dpad-down" data-dir="down" aria-label="下">▼</button>
   </div>
 
   <div id="flashLayer" class="flash-layer"></div>

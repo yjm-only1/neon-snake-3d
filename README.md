@@ -18,25 +18,26 @@ Three.js 3D 贪吃蛇：保留经典玩法（三档难度 / 5 种果实 / 连击
 - 三档难度（各有独立最高分）：悠闲 6 格/秒穿墙 · 经典 8 格/秒撞墙死 · 狂暴 11 格/秒加速最陡
 - 5 种果实（普通 / 金果 / 护盾 / 减速 / 双倍）+ 3 秒连击 ×2~×5
 - 个人资料：昵称、头像（emoji）、颜色，蛇头顶实时显示昵称牌
-- 三套皮肤：霓虹 / 极光 / 熔岩（设置里实时切换）
+- 三套皮肤：霓虹 / 极光 / 熔岩；两档画质：高清 / 流畅（设置里实时切换并保存）
 
-## 皮肤
+## 皮肤与画质
 
-设置 → 皮肤：影响底板质感、点阵、边框光晕、背景与灯光；蛇身颜色由个人资料决定。
+设置 → 皮肤 / 画质：皮肤影响底板质感、点阵、边框光晕、背景与灯光；画质为「流畅」时降低渲染分辨率并关闭尘埃、光晕、阴影等装饰，低端手机更稳。
 
 ![极光皮肤](screenshots/menu-aurora.png)
 ![熔岩皮肤](screenshots/menu-magma.png)
 
 ## 局域网联机（最多 8 人）
 
-浏览器之间不能直接互连，需要一台电脑当主机：
+浏览器之间不能直接互连，需要一台电脑当“房间”。**最简单的一键开房（Windows）**：
+
+> 双击 `一键开房间.bat` → 自动启动房间并打开浏览器 → 大厅里出现**邀请二维码 + 局域网地址** → 朋友扫码或输入地址即可加入，无需安装任何东西。
+
+命令行方式（macOS / Linux / 手动）：
 
 ```bash
-# 主机：项目目录下运行（零依赖，只需 Node.js）
 node server/server.mjs
-# 或 Windows 直接双击 start-server.bat
-
-# 服务器窗口会打印地址，例如：
+# 服务器会打印地址，例如：
 #   本机访问:   http://localhost:8787
 #   局域网访问: http://192.168.1.5:8787
 ```
@@ -67,6 +68,15 @@ node server/server.mjs
 | Enter | 菜单开局 / 结算重开 |
 | M | 静音音效 |
 | 手机滑动屏幕 | 转向 |
+| 手机触屏方向键 | 转向（触屏设备自动显示） |
+
+## 手机浏览器
+
+- 手机直接打开 https://yjm-only1.github.io/neon-snake-3d/ 即可单人游玩（竖屏适配、滑动转向、触屏方向键）
+- 局域网联机：手机扫主机大厅的二维码即可加入；**主机需要一台电脑**运行房间服务
+- 低端机建议在 设置 → 画质 切换到「流畅」
+
+![手机方向键](screenshots/game-3d-mobile-dpad.png)
 
 ## 项目结构
 
@@ -80,22 +90,26 @@ src/render3d.js                       Three.js 3D 渲染（透视相机 / 昵称
 src/net.js                            联机客户端（SSE 快照流）
 src/ui.js                             菜单 / 大厅 / HUD / 结算 / 个人资料
 src/main.js                           状态机 + 主循环
-server/server.mjs                     零依赖局域网服务器（HTTP + SSE）
+server/server.mjs                     零依赖局域网服务器（HTTP + SSE + 邀请二维码）
+一键开房间.bat                        Windows 一键开房（自动开浏览器）
 vendor/three.module.js                Three.js r160
+vendor/qr/qrcode.mjs                  二维码生成（qrcode-generator, MIT）
 tools/build_single.py                 单文件构建
-tools/sim/arena-selftest.mjs          联机逻辑自测（55 断言）
-tools/e2e/server-test.mjs             服务器集成测试（18 断言）
-tools/e2e/browser-test.mjs            单人 3D 浏览器验收（12 断言）
-tools/e2e/lan-browser-test.mjs        双人联机浏览器验收（17 断言）
+tools/sim/arena-selftest.mjs          联机逻辑自测（59 断言）
+tools/e2e/server-test.mjs             服务器集成测试（20 断言）
+tools/e2e/browser-test.mjs            单人 3D 浏览器验收（14 断言）
+tools/e2e/lan-browser-test.mjs        双人联机浏览器验收（19 断言）
+tools/e2e/mobile-test.mjs             手机触屏验收（7 断言）
 ```
 
 ## 测试与构建
 
 ```bash
 node tools/sim/arena-selftest.mjs    # 联机逻辑
-node tools/e2e/server-test.mjs       # 服务器集成
-node tools/e2e/browser-test.mjs      # 单人 3D（需本机 Chrome）
-node tools/e2e/lan-browser-test.mjs  # 双人联机（需本机 Chrome）
+node tools/e2e/server-test.mjs       # 服务器集成（含邀请二维码接口）
+node tools/e2e/browser-test.mjs      # 单人 3D + 皮肤/画质（需本机 Chrome）
+node tools/e2e/lan-browser-test.mjs  # 双人联机 + 邀请面板（需本机 Chrome）
+node tools/e2e/mobile-test.mjs       # 手机触屏方向键（需本机 Chrome）
 python tools/build_single.py         # 重建 index.html 与 deploy-site/index.html
 ```
 
@@ -103,7 +117,8 @@ python tools/build_single.py         # 重建 index.html 与 deploy-site/index.h
 
 - 服务端权威：Node 复用 `src/mp/arena.js` 跑模拟，浏览器只上报转向、接收 15Hz 快照并插值渲染
 - 传输零依赖：HTTP POST 上报输入 + SSE 推送快照，局域网延迟通常 <10ms，无需 npm install
-- 3D：透视斜俯视相机、发光方块蛇（InstancedMesh）、悬浮果实、贴地阴影、粒子与震屏
+- 3D：透视斜俯视相机、胶囊连体蛇（InstancedMesh）、点阵玻璃底板、悬浮果实、粒子与震屏
+- 性能：静态底板一次烘焙、昵称牌/果实材质按需创建、画质档降分辨率并关闭装饰层
 - GitHub Pages 只提供单人 3D；联机必须通过局域网服务器
 
 ## 发布

@@ -99,7 +99,12 @@ export const ACHIEVEMENTS = [
   { id: 'mp_win',      name: '局域网之王', desc: '联机结算获得第一名' },
 ];
 
-export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true, theme: 'neon' };
+export const SETTINGS_DEFAULTS = { sfx: true, music: true, grid: true, theme: 'neon', quality: 'high' };
+
+export const QUALITY_LIST = [
+  { id: 'high', name: '高清' },
+  { id: 'low', name: '流畅' },
+];
 
 // 皮肤主题：影响底板、点阵、边框、光晕、背景与灯光
 export const THEMES = {
