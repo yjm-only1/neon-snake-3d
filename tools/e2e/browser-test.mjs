@@ -9,7 +9,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const CHROME = process.env.BROWSER_PATH || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const PORT = 9350;
 const PROFILE_DIR = path.join(ROOT, 'Temp', 'chrome-3d-profile');
-const URL = 'file:///' + path.join(ROOT, 'index.html').replace(/\\/g, '/');
+const URL = process.env.GAME_URL || ('file:///' + path.join(ROOT, 'index.html').replace(/\\/g, '/'));
 const SHOTS = path.join(ROOT, 'Temp');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
