@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#05060f">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%8D%3C/text%3E%3C/svg%3E">
+<title>霓虹贪吃蛇 3D · Neon Snake 3D</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game"></canvas>
+
+  <!-- 单人 HUD -->
+  <div id="soloHud" class="hud hidden">
+    <div class="hud-top">
+      <div class="hud-stat"><span class="label">SCORE</span><b id="hudScore">0</b></div>
+      <div class="hud-stat"><span class="label">BEST</span><b id="hudBest">0</b></div>
+      <div id="comboChip" class="combo-chip hidden">×<span id="comboValue">2</span></div>
+      <button id="btnPause" class="icon-btn" title="暂停">❚❚</button>
+    </div>
+    <div id="diffChip" class="diff-chip">经典</div>
+  </div>
+
+  <!-- 联机 HUD -->
+  <div id="lanHud" class="hud hidden">
+    <div class="hud-top lan-top">
+      <div class="hud-stat"><span class="label">TIME</span><b id="lanTimer">3:00</b></div>
+      <div id="lanModeChip" class="lan-mode-chip">抢食竞速 · 限时</div>
+      <button id="btnLanLeave" class="icon-btn" title="退出房间">退出</button>
+    </div>
+    <div id="lanBoard" class="lan-board"></div>
+    <div id="lanRespawn" class="lan-respawn hidden">
+      <b id="lanRespawnSec">3</b><span>秒后重生</span>
+    </div>
+  </div>
+
+  <!-- 增益状态条（单人/联机共用） -->
+  <div id="buffBar" class="buff-bar hidden">
+    <div id="buffShield" class="buff-chip hidden"><span class="buff-icon">盾</span>护盾就绪</div>
+    <div id="buffSlow" class="buff-chip hidden">
+      <span class="buff-icon">缓</span><span id="buffSlowTime">8.0s</span>
+      <i class="buff-progress"><b id="buffSlowBar"></b></i>
+    </div>
+    <div id="buffDouble" class="buff-chip hidden">
+      <span class="buff-icon">×2</span><span id="buffDoubleTime">10.0s</span>
+      <i class="buff-progress"><b id="buffDoubleBar"></b></i>
+    </div>
+  </div>
+
+  <!-- 联机倒计时 -->
+  <div id="countdownOverlay" class="overlay hidden">
+    <div class="countdown-big" id="countdownText">3</div>
+  </div>
+
+  <!-- 主菜单 -->
+  <div id="menu" class="screen">
+    <h1 class="title">霓虹贪吃蛇 3D</h1>
+    <p class="subtitle">N E O N &nbsp; S N A K E &nbsp; 3 D</p>
+    <div id="diffRow" class="diff-row"></div>
+    <button id="btnLan" class="lan-btn">
+      <span class="lan-btn-title">局域网联机</span>
+      <span class="lan-btn-desc">同一 Wi-Fi 开房间，最多 8 人</span>
+    </button>
+    <div class="menu-actions">
+      <button id="btnProfile" class="ghost-btn">个人资料</button>
+      <button id="btnAchievements" class="ghost-btn">成就</button>
+      <button id="btnSettings" class="ghost-btn">设置</button>
+      <button id="btnHelp" class="ghost-btn">玩法</button>
+    </div>
+    <p id="menuStats" class="footnote"></p>
+    <p class="footnote dim">方向键 / WASD 转向 · 空格暂停 · 手机滑动屏幕</p>
+  </div>
+
+  <!-- 局域网面板 -->
+  <div id="lanOverlay" class="overlay hidden">
+    <div class="panel wide">
+      <h2>局域网联机</h2>
+
+      <div id="lanConnecting" class="lan-section">
+        <p class="footnote">正在检测房间服务器…</p>
+      </div>
+
+      <div id="lanUnavailable" class="lan-section hidden">
+        <p class="lan-tip">当前页面没有连上房间服务器。</p>
+        <ol class="help-list">
+          <li>在一台电脑上进入项目目录，运行 <code>node server/server.mjs</code>（或双击 <code>start-server.bat</code>）</li>
+          <li>服务器窗口会打印局域网地址，例如 <code>http://192.168.1.5:8787</code></li>
+          <li>所有人（包括主机）用这个地址打开页面，再点「局域网联机」</li>
+        </ol>
+        <button id="btnLanUnavailableClose" class="ghost-btn">知道了</button>
+      </div>
+
+      <div id="lanForm" class="lan-section hidden">
+        <label class="field-label" for="lanName">你的昵称</label>
+        <input id="lanName" class="text-input" maxlength="8" autocomplete="off">
+        <button id="btnLanJoin" class="primary-btn">加入房间</button>
+        <button id="btnLanBack" class="ghost-btn">返回主菜单</button>
+      </div>
+
+      <div id="lanLobby" class="lan-section hidden">
+        <div class="lobby-head">
+          <span id="lanLobbyCount" class="lobby-count">0/8</span>
+          <span id="lanHostTag" class="host-tag hidden">你是房主</span>
+        </div>
+        <div id="lanPlayerList" class="lan-player-list"></div>
+        <div class="lobby-config">
+          <label class="field-row"><span>玩法</span><select id="selMode"></select></label>
+          <label class="field-row"><span>节奏</span><select id="selRhythm"></select></label>
+          <label class="field-row"><span>难度</span><select id="selDifficulty"></select></label>
+        </div>
+        <div class="lobby-actions">
+          <button id="btnLanStart" class="primary-btn">开始游戏</button>
+          <button id="btnLanLeave2" class="ghost-btn">离开房间</button>
+        </div>
+        <p id="lanHint" class="footnote dim">等待房主开始…</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 联机结算 -->
+  <div id="lanEndOverlay" class="overlay hidden">
+    <div class="panel wide">
+      <div id="lanWinBanner" class="new-record hidden">★ 第一 ★</div>
+      <h2>对局结算</h2>
+      <div id="lanRanking" class="rank-list"></div>
+      <button id="btnLanAgain" class="primary-btn">再来一局</button>
+      <button id="btnLanEndLeave" class="ghost-btn">离开房间</button>
+      <p id="lanEndHint" class="footnote dim"></p>
+    </div>
+  </div>
+
+  <!-- 单人暂停 -->
+  <div id="pauseOverlay" class="overlay hidden">
+    <div class="panel">
+      <h2>已暂停</h2>
+      <button id="btnResume" class="primary-btn">继续游戏</button>
+      <button id="btnRestart" class="ghost-btn">重新开始</button>
+      <button id="btnQuit" class="ghost-btn">返回主菜单</button>
+    </div>
+  </div>
+
+  <!-- 单人结算 -->
+  <div id="gameOverOverlay" class="overlay hidden">
+    <div class="panel">
+      <div id="newRecord" class="new-record hidden">★ 新纪录 ★</div>
+      <h2 id="gameOverTitle">游戏结束</h2>
+      <div class="result-score" id="resultScore">0</div>
+      <div id="resultGrid" class="result-grid"></div>
+      <button id="btnAgain" class="primary-btn">再来一局</button>
+      <button id="btnToMenu" class="ghost-btn">返回主菜单</button>
+    </div>
+  </div>
+
+  <!-- 成就 -->
+  <div id="achievementsOverlay" class="overlay hidden">
+    <div class="panel wide">
+      <h2>成就 <span id="achCount" class="ach-count"></span></h2>
+      <div id="achList" class="ach-list"></div>
+      <button id="btnAchClose" class="ghost-btn">关闭</button>
+    </div>
+  </div>
+
+  <!-- 个人资料 -->
+  <div id="profileOverlay" class="overlay hidden">
+    <div class="panel">
+      <h2>个人资料</h2>
+      <div class="profile-card">
+        <span id="profileAvatarPreview" class="profile-avatar">🐍</span>
+        <span id="profileNamePreview" class="profile-name">玩家</span>
+      </div>
+      <label class="field-label" for="profileName">昵称（联机头顶显示）</label>
+      <input id="profileName" class="text-input" maxlength="8" autocomplete="off">
+      <label class="field-label">头像</label>
+      <div id="avatarPicker" class="avatar-grid"></div>
+      <label class="field-label">颜色</label>
+      <div id="colorPicker" class="color-grid"></div>
+      <button id="btnProfileSave" class="primary-btn">保存资料</button>
+      <button id="btnProfileClose" class="ghost-btn">关闭</button>
+      <p id="profileStats" class="footnote dim"></p>
+    </div>
+  </div>
+
+  <!-- 设置 -->
+  <div id="settingsOverlay" class="overlay hidden">
+    <div class="panel">
+      <h2>设置</h2>
+      <label class="toggle-row"><span>音效</span><input type="checkbox" id="setSfx"></label>
+      <label class="toggle-row"><span>背景音乐</span><input type="checkbox" id="setMusic"></label>
+      <label class="toggle-row"><span>网格线</span><input type="checkbox" id="setGrid"></label>
+      <button id="btnSetClose" class="ghost-btn">关闭</button>
+    </div>
+  </div>
+
+  <!-- 玩法 -->
+  <div id="helpOverlay" class="overlay hidden">
+    <div class="panel wide">
+      <h2>玩法</h2>
+      <ul class="help-list">
+        <li>吃果实变长：普通 +10，金果实 +50（6 秒内不吃会消失）</li>
+        <li>3 秒内连续吃到果实触发连击，得分倍率最高 ×5</li>
+        <li>护盾抵消一次死亡；减速 8 秒；双倍分 10 秒</li>
+        <li>单人三档难度：悠闲穿墙 / 经典撞墙 / 狂暴加速</li>
+        <li>局域网联机：同一 Wi-Fi 下由一台电脑开房间，最多 8 人</li>
+        <li>联机玩法：抢食竞速（互不伤害）/ 同场对抗（撞蛇身死）/ 各自竞速（同种子食物）</li>
+        <li>联机节奏：限时 3 分钟（死亡 3 秒重生）/ 生存淘汰（最后存活者获胜）</li>
+        <li>键盘：方向键 / WASD 转向，空格暂停，M 静音；手机：滑动转向</li>
+      </ul>
+      <button id="btnHelpClose" class="ghost-btn">知道了</button>
+    </div>
+  </div>
+
+  <div id="flashLayer" class="flash-layer"></div>
+  <div id="toastLayer" class="toast-layer"></div>
+</div>
+<script type="module" src="src/main.js"></script>
+<script data-dev-only>
+  // 仅源码页保留：file:// 下 ES Modules 会被浏览器拦截，给出明确指引
+  if (location.protocol === 'file:') {
+    var tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;left:0;right:0;bottom:0;z-index:99;padding:14px 20px;background:#3a1020;color:#ffd7de;font:14px/1.6 "Microsoft YaHei",sans-serif;text-align:center;';
+    tip.textContent = '当前是源码页，file:// 下无法加载模块。请直接双击构建产物 index.html；或在项目目录运行 python -m http.server / node server/server.mjs 后访问 dev.html。';
+    document.body.appendChild(tip);
+  }
+</script>
+</body>
+</html>

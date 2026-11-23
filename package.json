@@ -1,0 +1,15 @@
+{
+  "name": "neon-snake-3d",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "霓虹贪吃蛇 3D · Neon Snake 3D — Three.js 3D snake with LAN multiplayer",
+  "scripts": {
+    "test": "node tools/sim/arena-selftest.mjs",
+    "test:server": "node tools/e2e/server-test.mjs",
+    "test:browser": "node tools/e2e/browser-test.mjs",
+    "test:lan": "node tools/e2e/lan-browser-test.mjs",
+    "server": "node server/server.mjs",
+    "build": "python tools/build_single.py"
+  }
+}
