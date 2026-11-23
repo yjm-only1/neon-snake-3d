@@ -546,7 +546,7 @@ export class UI {
     const dot = (x, y, color, radius) => {
       ctx.fillStyle = color;
       ctx.beginPath();
-      ctx.arc(pad + (x + 0.5) * scale, pad + (y + 0.5) * scale, radius, 0, Math.PI * 2);
+      ctx.arc(pad + x * scale, pad + y * scale, radius, 0, Math.PI * 2);
       ctx.fill();
     };
 
@@ -570,7 +570,7 @@ export class UI {
         ctx.strokeStyle = player.color;
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.arc(pad + (head[0] + 0.5) * scale, pad + (head[1] + 0.5) * scale, 4.5, 0, Math.PI * 2);
+        ctx.arc(pad + head[0] * scale, pad + head[1] * scale, 4.5, 0, Math.PI * 2);
         ctx.stroke();
         dot(head[0], head[1], '#ffffff', 2.2);
       } else {

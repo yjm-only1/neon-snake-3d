@@ -144,23 +144,21 @@ async function main() {
     ok(playing, '倒计时结束进入对局');
     const playSnap = sse1.latest();
     const meSnap = playSnap.players.find((p) => p.id === p1.data.playerId);
-    ok(typeof meSnap.progress === 'number' && meSnap.progress >= 0 && meSnap.progress <= 1, '快照含格内进度');
+    ok(typeof meSnap.heading === 'number', '快照含朝向角度');
     ok(typeof meSnap.speed === 'number' && meSnap.speed > 0, '快照含移动速度');
 
-    console.log('4. 输入与移动');
-    const before = sse1.latest().players.find((p) => p.id === p1.data.playerId);
-    const beforeHead = before.segments[0];
-    await api('/api/input', { pid: p1.data.playerId, token: p1.data.token, dir: 'up' });
-    const moved = await waitFor(() => {
+    console.log('4. 输入与转向');
+    await api('/api/input', { pid: p1.data.playerId, token: p1.data.token, angle: -Math.PI / 2 });
+    const turned = await waitFor(() => {
       const snap = sse1.latest();
       if (!snap) return false;
       const me = snap.players.find((p) => p.id === p1.data.playerId);
-      return me && me.segments[0] && (me.segments[0][0] !== beforeHead[0] || me.segments[0][1] !== beforeHead[1]);
+      return me && Math.abs(me.heading + Math.PI / 2) < 0.3;
     }, 3000);
-    ok(moved, '服务端执行转向并广播新位置');
+    ok(turned, '服务端执行 360° 转向并广播');
 
-    const reverse = await api('/api/input', { pid: p1.data.playerId, token: p1.data.token, dir: 'down' });
-    ok(reverse.data.ok === false, '服务端拒绝 180° 反转');
+    const invalid = await api('/api/input', { pid: p1.data.playerId, token: p1.data.token, angle: 'abc' });
+    ok(invalid.data.ok === false, '服务端拒绝非法角度');
 
     console.log('5. 离开与清理');
     const leave = await api('/api/leave', { pid: p2.data.playerId, token: p2.data.token });

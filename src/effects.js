@@ -31,7 +31,7 @@ export class Effects {
     const palette = [color, '#19f9ff', '#a04dff', '#ffffff'];
     for (let i = 0; i < segments.length; i++) {
       const seg = segments[i];
-      this.burst(seg.x + 0.5, seg.y + 0.5, palette[i % palette.length], 5, 6.5);
+      this.burst(seg.x, seg.y, palette[i % palette.length], 5, 6.5);
     }
   }
 

@@ -1,12 +1,6 @@
-// 核心模拟：纯逻辑、无 DOM，可被 Node 直接导入做无头自测
-import { GRID_SOLO as GRID, START_LENGTH, DIFFICULTIES, FOOD_DEFS, FOOD_TYPES, COMBO, BUFF } from './config.js';
-
-export const DIRS = {
-  up: { x: 0, y: -1 },
-  down: { x: 0, y: 1 },
-  left: { x: -1, y: 0 },
-  right: { x: 1, y: 0 },
-};
+// 核心模拟：360° 连续移动，纯逻辑无 DOM，可被 Node 直接导入做无头自测
+import { GRID_SOLO as GRID, START_LENGTH, DIFFICULTIES, FOOD_DEFS, FOOD_TYPES, COMBO, BUFF, BODY } from './config.js';
+import { ContinuousSnake } from './snake-body.js';
 
 export class SnakeGame {
   constructor(options = {}) {
@@ -16,12 +10,18 @@ export class SnakeGame {
 
   reset(difficultyId) {
     this.difficulty = DIFFICULTIES[difficultyId] || DIFFICULTIES.classic;
-    const center = Math.floor(GRID / 2);
-    this.snake = [];
-    for (let i = 0; i < START_LENGTH; i++) this.snake.push({ x: center - i, y: center });
-    this.prevSnake = this.snake.map((seg) => ({ x: seg.x, y: seg.y }));
-    this.dir = DIRS.right;
-    this.pendingDirs = [];
+    this.grid = GRID;
+    const center = GRID / 2;
+    this.body = new ContinuousSnake({
+      grid: GRID,
+      length: START_LENGTH,
+      x: center - 1,
+      y: center,
+      heading: 0,
+    });
+    this.snake = this.body.segments;
+    this.heading = this.body.heading;
+    this.dir = { x: 1, y: 0 };
     this.food = null;
     this.score = 0;
     this.combo = 1;
@@ -30,7 +30,6 @@ export class SnakeGame {
     this.fruitTypesEaten = new Set();
     this.buffs = { shield: false, slowRemaining: 0, doubleRemaining: 0, shieldPhase: 0 };
     this.speed = this.currentSpeed();
-    this.tickAccum = 0;
     this.elapsed = 0;
     this.alive = true;
     this.deadReason = '';
@@ -38,60 +37,79 @@ export class SnakeGame {
     this.spawnFood();
   }
 
-  /** 入队一个转向（'up'/'down'/'left'/'right' 或向量）；最多缓存 2 步，拒绝反转与重复。 */
-  queueDirection(dir) {
-    if (!this.alive) return false;
-    const d = typeof dir === 'string' ? DIRS[dir] : dir;
-    if (!d || (d.x === 0 && d.y === 0) || Math.abs(d.x) + Math.abs(d.y) !== 1) return false;
-    const ref = this.pendingDirs.length > 0
-      ? this.pendingDirs[this.pendingDirs.length - 1]
-      : this.dir;
-    if (d.x === -ref.x && d.y === -ref.y) return false;
-    if (d.x === ref.x && d.y === ref.y) return false;
-    if (this.pendingDirs.length >= 2) return false;
-    this.pendingDirs.push({ x: d.x, y: d.y });
-    return true;
+  /** 设置目标朝向（弧度，屏幕坐标：0=右，π/2=下）。 */
+  setAim(angle) {
+    if (this.alive) this.body.setAim(angle);
   }
 
-  /** 推进模拟；dt 单位毫秒（与配置中的时长常量一致）。 */
-  update(dt) {
-    if (!this.alive || !(dt > 0)) return;
-    this.elapsed += dt;
+  update(dtMs) {
+    if (!this.alive || !(dtMs > 0)) return;
+    this.elapsed += dtMs;
 
     if (this.comboTimer > 0) {
-      this.comboTimer -= dt;
+      this.comboTimer -= dtMs;
       if (this.comboTimer <= 0) {
         this.comboTimer = 0;
         this.combo = 1;
       }
     }
-    if (this.buffs.slowRemaining > 0) {
-      this.buffs.slowRemaining = Math.max(0, this.buffs.slowRemaining - dt);
+    const buffs = this.buffs;
+    if (buffs.slowRemaining > 0) buffs.slowRemaining = Math.max(0, buffs.slowRemaining - dtMs);
+    if (buffs.doubleRemaining > 0) buffs.doubleRemaining = Math.max(0, buffs.doubleRemaining - dtMs);
+    if (buffs.shieldPhase > 0) buffs.shieldPhase = Math.max(0, buffs.shieldPhase - dtMs);
+
+    const wrap = this.difficulty.wrap || buffs.shieldPhase > 0;
+    this.speed = this.currentSpeed();
+    this.body.update(dtMs / 1000, this.speed, wrap);
+    this.heading = this.body.heading;
+    this.dir = { x: Math.cos(this.heading), y: Math.sin(this.heading) };
+
+    if (!wrap && this.hitWall()) {
+      if (!this.tryAbsorb()) {
+        this.die('wall');
+        return;
+      }
     }
-    if (this.buffs.doubleRemaining > 0) {
-      this.buffs.doubleRemaining = Math.max(0, this.buffs.doubleRemaining - dt);
+    if (this.alive && buffs.shieldPhase <= 0 && this.hitSelf()) {
+      if (!this.tryAbsorb()) {
+        this.die('self');
+        return;
+      }
     }
-    if (this.buffs.shieldPhase > 0) {
-      this.buffs.shieldPhase = Math.max(0, this.buffs.shieldPhase - dt);
-    }
+
     if (this.food && this.food.remainingMs != null) {
-      this.food.remainingMs -= dt;
+      this.food.remainingMs -= dtMs;
       if (this.food.remainingMs <= 0) {
         this.events.push({ type: 'foodExpired', food: this.food.type });
         this.spawnFood();
       }
     }
 
-    this.tickAccum += dt;
-    let guard = 16;
-    while (this.alive && guard-- > 0) {
-      this.speed = this.currentSpeed();
-      const interval = 1000 / this.speed;
-      if (this.tickAccum < interval) break;
-      this.tickAccum -= interval;
-      this.tick();
+    if (this.alive && this.food) {
+      const head = this.body.head;
+      const dx = this.food.x - head.x;
+      const dy = this.food.y - head.y;
+      if (Math.hypot(dx, dy) <= BODY.eatRadius) this.eat();
     }
-    if (!this.alive) this.tickAccum = 0;
+  }
+
+  hitWall() {
+    const head = this.body.head;
+    return head.x < BODY.headRadius
+      || head.y < BODY.headRadius
+      || head.x > this.grid - BODY.headRadius
+      || head.y > this.grid - BODY.headRadius;
+  }
+
+  hitSelf() {
+    const head = this.body.head;
+    const segments = this.body.segments;
+    for (let i = BODY.selfHitIndex; i < segments.length; i++) {
+      const dx = segments[i].x - head.x;
+      const dy = segments[i].y - head.y;
+      if (Math.hypot(dx, dy) < BODY.selfHitDistance) return true;
+    }
+    return false;
   }
 
   currentSpeed() {
@@ -100,15 +118,12 @@ export class SnakeGame {
       speed += Math.floor(this.fruitsEaten / this.difficulty.growthEvery) * this.difficulty.growthPerFruit;
     }
     speed = Math.min(speed, this.difficulty.maxSpeed);
-    if (this.buffs.slowRemaining > 0) speed *= BUFF.slowMultiplier;
+    if (this.buffs && this.buffs.slowRemaining > 0) speed *= BUFF.slowMultiplier;
     return speed;
   }
 
-  /** 渲染插值进度 0..1（距下一格移动的完成度）。 */
-  getTickProgress() {
-    const interval = 1000 / this.speed;
-    if (!Number.isFinite(interval) || interval <= 0) return 0;
-    return Math.max(0, Math.min(1, this.tickAccum / interval));
+  getComboMultiplier() {
+    return this.comboTimer > 0 ? this.combo : 1;
   }
 
   drainEvents() {
@@ -117,56 +132,7 @@ export class SnakeGame {
     return list;
   }
 
-  tick() {
-    this.prevSnake = this.snake.map((seg) => ({ x: seg.x, y: seg.y }));
-
-    if (this.pendingDirs.length > 0) {
-      const next = this.pendingDirs.shift();
-      if (!(next.x === -this.dir.x && next.y === -this.dir.y)) this.dir = next;
-    }
-
-    const head = this.snake[0];
-    let nx = head.x + this.dir.x;
-    let ny = head.y + this.dir.y;
-
-    let hitWall = nx < 0 || ny < 0 || nx >= GRID || ny >= GRID;
-    const wrapAllowed = this.difficulty.wrap || this.buffs.shieldPhase > 0;
-    if (hitWall && wrapAllowed) {
-      nx = (nx + GRID) % GRID;
-      ny = (ny + GRID) % GRID;
-      hitWall = false;
-    }
-
-    let eating = !!(this.food && this.food.x === nx && this.food.y === ny);
-    const bodyCount = eating ? this.snake.length : this.snake.length - 1;
-    let hitSelf = !hitWall && this.overlapsBody(nx, ny, bodyCount);
-
-    if (hitWall || hitSelf) {
-      if (!this.tryAbsorbCollision()) {
-        this.die(hitWall ? 'wall' : 'self');
-        return;
-      }
-      if (hitWall) {
-        nx = (nx + GRID) % GRID;
-        ny = (ny + GRID) % GRID;
-        eating = !!(this.food && this.food.x === nx && this.food.y === ny);
-      }
-    }
-
-    this.snake.unshift({ x: nx, y: ny });
-    if (eating) this.eat();
-    else this.snake.pop();
-  }
-
-  overlapsBody(x, y, count) {
-    for (let i = 0; i < count; i++) {
-      const seg = this.snake[i];
-      if (seg.x === x && seg.y === y) return true;
-    }
-    return false;
-  }
-
-  tryAbsorbCollision() {
+  tryAbsorb() {
     if (this.buffs.shieldPhase > 0) return true;
     if (this.buffs.shield) {
       this.buffs.shield = false;
@@ -187,6 +153,7 @@ export class SnakeGame {
     this.score += gained;
     this.fruitsEaten += 1;
     this.fruitTypesEaten.add(def.id);
+    this.body.grow(1);
 
     if (def.id === 'shield') this.buffs.shield = true;
     else if (def.id === 'slow') this.buffs.slowRemaining = BUFF.slowDuration;
@@ -198,7 +165,7 @@ export class SnakeGame {
       gained,
       combo: this.combo,
       double: doubleActive,
-      head: { x: this.snake[0].x, y: this.snake[0].y },
+      head: { x: this.body.head.x, y: this.body.head.y },
     });
     this.spawnFood();
   }
@@ -206,11 +173,15 @@ export class SnakeGame {
   die(reason) {
     this.alive = false;
     this.deadReason = reason;
-    this.events.push({ type: 'death', reason });
+    this.events.push({
+      type: 'death',
+      reason,
+      head: { x: this.body.head.x, y: this.body.head.y },
+    });
   }
 
   spawnFood() {
-    const cell = this.findEmptyCell();
+    const cell = this.findFoodPosition();
     if (!cell) {
       this.food = null;
       return;
@@ -225,6 +196,36 @@ export class SnakeGame {
     };
   }
 
+  findFoodPosition() {
+    const margin = 1.2;
+    const head = this.body.head;
+    // 优先刷在蛇头附近，跟随镜头下始终有目标
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const radius = 5 + this.rng() * 9;
+      const angle = this.rng() * Math.PI * 2;
+      const x = Math.max(margin, Math.min(this.grid - margin, head.x + Math.cos(angle) * radius));
+      const y = Math.max(margin, Math.min(this.grid - margin, head.y + Math.sin(angle) * radius));
+      if (this.distanceToBody(x, y) < 1.2) continue;
+      return { x, y };
+    }
+    for (let attempt = 0; attempt < 300; attempt++) {
+      const x = margin + this.rng() * (this.grid - margin * 2);
+      const y = margin + this.rng() * (this.grid - margin * 2);
+      if (this.distanceToBody(x, y) < 1.2) continue;
+      return { x, y };
+    }
+    return null;
+  }
+
+  distanceToBody(x, y) {
+    let min = Infinity;
+    for (const segment of this.body.segments) {
+      const distance = Math.hypot(segment.x - x, segment.y - y);
+      if (distance < min) min = distance;
+    }
+    return min;
+  }
+
   pickFoodType() {
     let total = 0;
     for (const id of FOOD_TYPES) total += FOOD_DEFS[id].weight;
@@ -236,30 +237,10 @@ export class SnakeGame {
     return 'normal';
   }
 
-  findEmptyCell() {
-    for (let attempt = 0; attempt < 300; attempt++) {
-      const x = Math.floor(this.rng() * GRID);
-      const y = Math.floor(this.rng() * GRID);
-      if (!this.snake.some((seg) => seg.x === x && seg.y === y)) return { x, y };
-    }
-    const occupied = new Set(this.snake.map((seg) => seg.y * GRID + seg.x));
-    const free = [];
-    for (let i = 0; i < GRID * GRID; i++) {
-      if (!occupied.has(i)) free.push(i);
-    }
-    if (free.length === 0) return null;
-    const pick = free[Math.floor(this.rng() * free.length)];
-    return { x: pick % GRID, y: Math.floor(pick / GRID) };
-  }
-
   /** 测试辅助：在指定位置放置指定类型食物。 */
   placeFood(type, x, y) {
     const def = FOOD_DEFS[type];
     if (!def) return;
     this.food = { type, x, y, remainingMs: def.lifetime != null ? def.lifetime : null };
-  }
-
-  getComboMultiplier() {
-    return this.comboTimer > 0 ? this.combo : 1;
   }
 }

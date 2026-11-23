@@ -2,10 +2,21 @@
 
 export const STORAGE_KEY = 'neonSnake3D.v1';
 
-export const GRID_SOLO = 24;      // 单人棋盘 24x24
+export const GRID_SOLO = 44;      // 单人棋盘与联机统一 44x44（约 2.5 倍面积）
 export const START_LENGTH = 3;
 
 export const COMBO = { window: 3000, max: 5 };
+
+// 连续移动（360°）身体参数：单位=格
+export const BODY = {
+  spacing: 0.5,
+  headRadius: 0.42,
+  eatRadius: 0.9,
+  selfHitIndex: 5,
+  selfHitDistance: 0.6,
+  interHitDistance: 0.85,
+  turnRate: 11,
+};
 
 export const BUFF = {
   slowMultiplier: 0.7,

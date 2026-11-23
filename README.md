@@ -15,7 +15,9 @@ Three.js 3D 贪吃蛇：保留经典玩法（三档难度 / 5 种果实 / 连击
 ## 单人 3D
 
 - 双击根目录 `index.html`（构建产物）即玩；或运行局域网服务器后在浏览器打开
-- **任何窗口比例都完整显示整张地图**（相机按棋盘四角投影自动拟合，保留 45° 视角）
+- **视角始终跟随你的蛇**（单人与联机一致），地图统一 44×44（约 2.5 倍面积）
+- **360° 连续移动**：手机摇杆/滑动任意角度，蛇头平滑转向；PC 方向键 / WASD 设定四个基准方向
+- 护盾=蓝色罩子；减速=紫色光环；双倍=金色光环，HUD 同步显示倒计时
 - 三档难度（各有独立最高分）：悠闲 6 格/秒穿墙 · 经典 8 格/秒撞墙死 · 狂暴 11 格/秒加速最陡
 - 5 种果实（普通 / 金果 / 护盾 / 减速 / 双倍）+ 3 秒连击 ×2~×5
 - 个人资料：昵称、头像（emoji）、颜色，蛇头顶实时显示昵称牌
@@ -67,6 +69,12 @@ node server/server.mjs
 - **朋友打不开**：确认同一 Wi-Fi、首次运行时 Windows 防火墙已允许 Node.js、使用服务器打印的 `192.168.x.x` 地址（不要用 localhost）
 - **Windows 安全提示**：若弹出“Windows 已保护你的电脑”，点「更多信息 → 仍要运行」
 
+## 增益表现
+
+护盾会在蛇身外形成蓝色罩子；减速/双倍分别有紫色/金色光环，HUD 显示图标与倒计时。
+
+![护盾与双倍](screenshots/shield-3d.png)
+
 ## 操作
 
 | 输入 | 动作 |
@@ -75,8 +83,8 @@ node server/server.mjs
 | 空格 / Esc | 暂停（仅单人；暂停面板内可进设置） |
 | Enter | 菜单开局 / 结算重开 |
 | M | 静音音效 |
-| 手机滑动屏幕 | 转向 |
-| 手机触屏方向键 | 转向（触屏设备自动显示） |
+| 手机滑动屏幕 | 设定任意方向（360°） |
+| 手机左下摇杆 | 360° 连续转向（触屏自动显示） |
 
 ## 手机浏览器
 
@@ -85,8 +93,8 @@ node server/server.mjs
 - 局域网联机：手机扫主机大厅的二维码即可加入；**主机需要一台电脑**运行房间服务
 - 低端机建议在 设置 → 画质 切换到「流畅」
 
-![手机方向键](screenshots/game-3d-mobile-dpad.png)
-![手机横屏](screenshots/game-3d-landscape-dpad.png)
+![手机摇杆](screenshots/game-3d-mobile-joystick.png)
+![手机横屏](screenshots/game-3d-landscape-joystick.png)
 
 ## 项目结构
 
@@ -105,7 +113,7 @@ server/server.mjs                     零依赖局域网服务器（HTTP + SSE +
 vendor/three.module.js                Three.js r160
 vendor/qr/qrcode.mjs                  二维码生成（qrcode-generator, MIT）
 tools/build_single.py                 单文件构建
-tools/sim/arena-selftest.mjs          联机逻辑自测（59 断言）
+tools/sim/arena-selftest.mjs          联机逻辑自测（51 断言）
 tools/e2e/server-test.mjs             服务器集成测试（22 断言）
 tools/e2e/browser-test.mjs            单人 3D 浏览器验收（14 断言）
 tools/e2e/lan-browser-test.mjs        双人联机浏览器验收（22 断言）
@@ -125,8 +133,8 @@ python tools/build_single.py         # 重建 index.html 与 deploy-site/index.h
 
 ## 技术要点
 
-- 服务端权威：Node 复用 `src/mp/arena.js` 跑模拟，浏览器只上报转向、接收 30Hz 快照
-- 联机平滑：服务端下发「格内进度 + 速度」，客户端用**双快照按时间插值 + 固定渲染延迟**（快照到达抖动不直接传导到画面），落后时短距离外推；相机跟随插值后的头部；渲染分辨率设上限避免高分屏掉帧
+- 服务端权威：Node 复用 `src/mp/arena.js` 做 360° 连续模拟，浏览器只上报目标角度、接收 30Hz 快照
+- 联机平滑：连续坐标 + **双快照按时间插值 + 固定渲染延迟**（快照到达抖动不直接传导到画面），相机跟随插值后的头部；渲染分辨率设上限避免高分屏掉帧
 - 传输零依赖：HTTP POST 上报输入 + SSE 推送快照，局域网延迟通常 <10ms，无需 npm install
 - 3D：透视斜俯视相机、胶囊连体蛇（InstancedMesh）、点阵玻璃底板、悬浮果实、粒子与震屏
 - 性能：静态底板一次烘焙、昵称牌/果实材质按需创建、画质档降分辨率并关闭装饰层

@@ -177,14 +177,25 @@ async function main() {
     await clickReal(cdp, '[data-diff="classic"]');
     ok(await evaluate(cdp, '!document.getElementById("soloHud").classList.contains("hidden")'), 'HUD 显示');
     ok(await evaluate(cdp, 'window.__neonSnake3D.getMode()') === 'solo', '进入单人模式');
-    await sleep(900);
-    const elapsed = await evaluate(cdp, 'window.__neonSnake3D.getGame().elapsed');
-    ok(elapsed > 500, '模拟推进（蛇在移动）', `elapsed=${elapsed}`);
+    const moved = await waitFor(cdp, `(() => {
+      const g = window.__neonSnake3D.getGame();
+      return !!g && g.snake[0].x > g.snake[1].x + 0.3;
+    })()`, 4000);
+    ok(moved, '蛇在向前移动');
     await shot(cdp, 'game-3d-mobile.png');
 
     await cdp.send('Emulation.setDeviceMetricsOverride', { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
     await sleep(500);
     await shot(cdp, 'game-3d-desktop.png');
+
+    console.log('4.5 护盾与增益表现');
+    await evaluate(cdp, `(() => {
+      const g = window.__neonSnake3D.getGame();
+      g.buffs.shield = true;
+      g.buffs.doubleRemaining = 10000;
+    })()`);
+    await sleep(400);
+    await shot(cdp, 'shield-3d.png');
 
     console.log('5. 死亡与结算');
     await evaluate(cdp, 'window.__neonSnake3D.getGame().die("wall")');

@@ -141,9 +141,9 @@ export class NetClient {
     } catch (err) { /* 网络抖动忽略 */ }
   }
 
-  sendDirection(dir) {
+  sendAim(angle) {
     if (!this.joined || this.leaving) return;
-    this.post('/api/input', { pid: this.pid, token: this.token, dir }).catch(() => {});
+    this.post('/api/input', { pid: this.pid, token: this.token, angle }).catch(() => {});
   }
 
   async setConfig(partial) {

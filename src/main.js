@@ -7,7 +7,7 @@ import { Effects } from './effects.js';
 import { Renderer3D } from './render3d.js';
 import { UI } from './ui.js';
 import { NetClient } from './net.js';
-import { GRID_SOLO, DIFFICULTIES, FOOD_DEFS, ACHIEVEMENTS } from './config.js';
+import { GRID_SOLO, DIFFICULTIES, FOOD_DEFS, ACHIEVEMENTS, MP } from './config.js';
 
 const state = loadState();
 const unlockedAchievements = new Set(state.achievements);
@@ -15,7 +15,7 @@ const audio = new AudioEngine(state.settings);
 const effects = new Effects();
 const canvas = document.getElementById('game');
 const renderer = new Renderer3D(canvas, state.settings);
-const dpadEl = document.getElementById('dpad');
+const joystickEl = document.getElementById('joystick');
 const isTouchDevice = window.matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('touch-device', isTouchDevice);
 
@@ -59,9 +59,10 @@ const ui = new UI(state, {
 });
 
 const input = new InputController({
-  onDirection: (dir) => {
-    if (mode === 'solo' && game) game.queueDirection(dir);
-    else if (mode === 'lan' && net && net.snapshot && net.snapshot.phase === 'playing') net.sendDirection(dir);
+  onAim: (angle) => {
+    if (angle == null) return;
+    if (mode === 'solo' && game) game.setAim(angle);
+    else if (mode === 'lan' && net && net.snapshot && net.snapshot.phase === 'playing') net.sendAim(angle);
   },
   onPauseToggle: () => togglePause(),
   onConfirm: () => confirmAction(),
@@ -173,7 +174,7 @@ function enterSoloDying() {
   audio.death();
   effects.deathBurst(game.snake, '#19f9ff');
   const head = game.snake[0];
-  effects.burst(head.x + 0.5, head.y + 0.5, '#ffffff', 26, 9);
+  effects.burst(head.x, head.y, '#ffffff', 26, 9);
   effects.addShake(16);
   effects.addFlash(0.45, game.deadReason === 'wall' ? '#ff4d6d' : '#a04dff');
 }
@@ -207,8 +208,8 @@ function handleSoloEvents(events) {
   for (const event of events) {
     if (event.type === 'eat') {
       const def = FOOD_DEFS[event.food];
-      const cx = event.head.x + 0.5;
-      const cy = event.head.y + 0.5;
+      const cx = event.head.x;
+      const cy = event.head.y;
       if (event.food === 'gold') {
         audio.gold();
         effects.addFlash(0.28, '#ffd23f');
@@ -221,6 +222,12 @@ function handleSoloEvents(events) {
       if (event.food === 'shield' || event.food === 'slow' || event.food === 'double') {
         audio.buff(event.food);
         effects.burst(cx, cy, def.color, 16, 5);
+        const label = event.food === 'shield'
+          ? '获得护盾：抵挡一次死亡'
+          : event.food === 'slow'
+            ? '减速 30% · 持续 8 秒'
+            : '双倍得分 · 持续 10 秒';
+        ui.toast(label, 'hint');
       }
       if (event.combo >= 2) effects.addShake(1.5 + event.combo);
     } else if (event.type === 'shieldBreak') {
@@ -228,6 +235,7 @@ function handleSoloEvents(events) {
       audio.shieldBreak();
       effects.addFlash(0.35, '#4da3ff');
       effects.addShake(10);
+      ui.toast('护盾抵挡！', 'hint');
     }
   }
 }
@@ -331,8 +339,8 @@ function handleLanEvents(events) {
   for (const event of events) {
     if (event.type === 'eat') {
       const def = FOOD_DEFS[event.food];
-      const cx = event.x + 0.5;
-      const cy = event.y + 0.5;
+      const cx = event.x;
+      const cy = event.y;
       const isMe = event.playerId === selfId;
       if (event.food === 'gold') {
         if (isMe) { audio.gold(); effects.addFlash(0.22, '#ffd23f'); }
@@ -343,6 +351,12 @@ function handleLanEvents(events) {
       }
       if (isMe && (event.food === 'shield' || event.food === 'slow' || event.food === 'double')) {
         audio.buff(event.food);
+        const label = event.food === 'shield'
+          ? '获得护盾：抵挡一次死亡'
+          : event.food === 'slow'
+            ? '减速 30% · 持续 8 秒'
+            : '双倍得分 · 持续 10 秒';
+        ui.toast(label, 'hint');
       }
     } else if (event.type === 'shieldBreak') {
       if (event.playerId === selfId) {
@@ -350,11 +364,12 @@ function handleLanEvents(events) {
         audio.shieldBreak();
         effects.addFlash(0.35, '#4da3ff');
         effects.addShake(10);
+        ui.toast('护盾抵挡！', 'hint');
       }
     } else if (event.type === 'death') {
       const player = players.find((p) => p.id === event.playerId);
       const color = player ? player.color : '#ff4d6d';
-      effects.burst(event.x + 0.5, event.y + 0.5, color, 26, 9);
+      effects.burst(event.x, event.y, color, 26, 9);
       effects.addShake(8);
       if (event.playerId === selfId) {
         audio.death();
@@ -409,17 +424,7 @@ async function leaveLan() {
 
 // ---------- 渲染视图 ----------
 function buildSoloView() {
-  const t = game.alive ? game.getTickProgress() : 1;
-  const segments = [];
-  for (let i = 0; i < game.snake.length; i++) {
-    const cur = game.snake[i];
-    const old = game.prevSnake[i] || cur;
-    const wrapped = Math.abs(cur.x - old.x) > 1.5 || Math.abs(cur.y - old.y) > 1.5;
-    segments.push([
-      wrapped ? cur.x : old.x + (cur.x - old.x) * t,
-      wrapped ? cur.y : old.y + (cur.y - old.y) * t,
-    ]);
-  }
+  const segments = game.snake.map((segment) => [segment.x, segment.y]);
   const foods = game.food
     ? [{ id: `solo-${game.food.type}`, type: game.food.type, x: game.food.x, y: game.food.y }]
     : [];
@@ -430,42 +435,17 @@ function buildSoloView() {
       color: state.profile.color || '#19f9ff',
       label: `${state.profile.avatar || '🐍'} ${state.profile.name || '玩家'}`,
       segments,
-      dir: [game.dir.x, game.dir.y],
+      dir: [Math.cos(game.heading), Math.sin(game.heading)],
       visible: true,
+      shield: game.buffs.shield,
+      shieldPhase: game.buffs.shieldPhase > 0,
+      slowBuff: game.buffs.slowRemaining > 0,
+      doubleBuff: game.buffs.doubleRemaining > 0,
     }],
     foods,
+    follow: true,
+    focus: [game.body.head.x, game.body.head.y],
   };
-}
-
-function wrapCoord(value, grid) {
-  return ((value % grid) + grid) % grid;
-}
-
-// 服务端「格子 + 格内进度」→ 连续坐标；extraCells 用于快照落后时的短距离外推
-function continuousSegments(player, grid, extraCells) {
-  const segments = player.segments;
-  if (!segments || segments.length === 0) return [];
-  const base = Math.max(0, Math.min(0.98, player.progress || 0));
-  const progress = Math.max(0, Math.min(1, base + Math.max(0, extraCells)));
-  const dir = player.dir || [1, 0];
-  const head = segments[0];
-  const points = [[
-    wrapCoord(head[0] + dir[0] * progress, grid),
-    wrapCoord(head[1] + dir[1] * progress, grid),
-  ]];
-  for (let i = 1; i < segments.length; i++) {
-    const current = segments[i];
-    const ahead = segments[i - 1];
-    if (Math.abs(ahead[0] - current[0]) > 1.5 || Math.abs(ahead[1] - current[1]) > 1.5) {
-      points.push([current[0], current[1]]);
-      continue;
-    }
-    points.push([
-      current[0] + (ahead[0] - current[0]) * progress,
-      current[1] + (ahead[1] - current[1]) * progress,
-    ]);
-  }
-  return points;
 }
 
 function blendSegments(from, to, alpha) {
@@ -484,27 +464,27 @@ function blendSegments(from, to, alpha) {
 }
 
 function buildLanView() {
-  // 双快照按时间插值 + 渲染延迟：快照到达抖动不会直接变成画面抖动
   const frame = net.getRenderFrame(performance.now());
-  if (!frame) return { grid: 44, snakes: [], foods: [], follow: true, focus: lanFocus };
-  const { a, b, alpha, extraSec } = frame;
+  if (!frame) return { grid: MP.grid, snakes: [], foods: [], follow: true, focus: lanFocus };
+  const { a, b, alpha } = frame;
   const snapshot = b;
   const lanes = snapshot.mode === 'lanes';
-  const grid = snapshot.grid || 44;
+  const grid = snapshot.grid || MP.grid;
   const relevant = lanes ? snapshot.players.filter((p) => p.id === selfId) : snapshot.players;
   const snakes = relevant.map((player) => {
     const prevPlayer = a && a.players ? a.players.find((p) => p.id === player.id) : null;
-    const previous = prevPlayer && prevPlayer.alive ? continuousSegments(prevPlayer, grid, 0) : null;
-    const current = player.alive
-      ? continuousSegments(player, grid, snapshot.phase === 'playing' ? extraSec * (player.speed || 0) : 0)
-      : [];
+    const previous = prevPlayer && prevPlayer.alive && player.alive ? prevPlayer.segments : null;
     return {
       id: player.id,
       color: player.color,
       label: `${player.avatar || '🐍'} ${player.name}`,
-      segments: player.alive ? blendSegments(previous, current, alpha) : [],
-      dir: player.dir,
+      segments: player.alive ? blendSegments(previous, player.segments, alpha) : [],
+      dir: [Math.cos(player.heading || 0), Math.sin(player.heading || 0)],
       visible: player.alive,
+      shield: player.buffs ? player.buffs.shield : false,
+      shieldPhase: player.buffs ? player.buffs.shieldPhaseMs > 0 : false,
+      slowBuff: player.buffs ? player.buffs.slowMs > 0 : false,
+      doubleBuff: player.buffs ? player.buffs.doubleMs > 0 : false,
     };
   });
   let foods = [];
@@ -550,9 +530,9 @@ function frame(now) {
     renderer.renderMenu(now, effects);
   }
 
-  if (dpadEl) {
+  if (joystickEl) {
     const lanPlaying = mode === 'lan' && net && net.snapshot && net.snapshot.phase === 'playing';
-    dpadEl.classList.toggle('visible', mode === 'solo' || lanPlaying);
+    joystickEl.classList.toggle('visible', mode === 'solo' || lanPlaying);
   }
   ui.setFlash(effects.flash, effects.flashColor);
   requestAnimationFrame(frame);

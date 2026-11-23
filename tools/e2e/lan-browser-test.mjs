@@ -164,13 +164,13 @@ async function main() {
 
     console.log('4. 操作与截图');
     await evaluate(cdp, 'window.dispatchEvent(new KeyboardEvent("keydown", { code: "ArrowUp" }))');
-    await sleep(700);
-    const dir = await evaluate(cdp, `(() => {
+    const turned = await waitFor(cdp, `(() => {
       const snap = window.__neonSnake3D.getSnapshot();
+      if (!snap) return false;
       const me = snap.players.find((p) => p.id === window.__neonSnake3D.getSelfId());
-      return me ? me.dir.join(',') : '';
-    })()`);
-    ok(dir !== '1,0', '转向指令已被服务端执行', `dir=${dir}`);
+      return !!me && Math.abs(me.heading + Math.PI / 2) < 0.35;
+    })()`, 3000);
+    ok(turned, '键盘方向键转向生效（360° 目标角）');
     const shot = await cdp.send('Page.captureScreenshot', { format: 'png' });
     fs.writeFileSync(path.join(ROOT, 'Temp', 'lan-battle-3d.png'), Buffer.from(shot.data, 'base64'));
     console.log('  · 截图 lan-battle-3d.png');

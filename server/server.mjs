@@ -212,7 +212,7 @@ async function handle(req, res) {
     const session = getSession(body.pid, body.token);
     if (!session) return sendJson(res, 401, { error: '会话无效' });
     session.lastSeen = Date.now();
-    const accepted = arena.queueDirection(body.pid, body.dir);
+    const accepted = arena.setAim(body.pid, Number(body.angle));
     return sendJson(res, 200, { ok: accepted });
   }
 

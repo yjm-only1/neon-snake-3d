@@ -117,7 +117,7 @@ export class Renderer3D {
     this.settings = settings;
     this.qualitySetting = settings.quality || 'auto';
     this.quality = resolveQuality(this.qualitySetting);
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.quality !== 'low', powerPreference: 'high-performance' });
     this.renderer.setPixelRatio(this.computePixelRatio());
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
@@ -170,11 +170,12 @@ export class Renderer3D {
 
   computePixelRatio() {
     const dpr = window.devicePixelRatio || 1;
-    const cap = this.quality === 'low' ? 1 : 1.5;
+    const low = this.quality === 'low';
+    const cap = low ? 0.9 : 1.5;
     let ratio = Math.min(dpr, cap);
     const width = Math.max(1, window.innerWidth);
     const height = Math.max(1, window.innerHeight);
-    const maxPixels = 3.2e6; // 大屏/高分屏上限，避免 4K×2 的填充压力
+    const maxPixels = low ? 1.6e6 : 3.2e6; // 上限，避免高分屏/手机的填充压力
     const pixels = width * height * ratio * ratio;
     if (pixels > maxPixels) ratio *= Math.sqrt(maxPixels / pixels);
     return Math.max(0.75, ratio);
@@ -480,7 +481,7 @@ export class Renderer3D {
   }
 
   worldPos(x, y) {
-    return { x: x + 0.5 - this.grid / 2, z: y + 0.5 - this.grid / 2 };
+    return { x: x - this.grid / 2, z: y - this.grid / 2 };
   }
 
   snakeEntry(id, color) {
@@ -525,7 +526,36 @@ export class Renderer3D {
       headShadow.scale.set(1.3, 1.3, 1);
       this.scene.add(headShadow);
 
-      entry = { mesh, headGroup, head, glow, headShadow, color: null };
+      const bubble = new THREE.Mesh(
+        new THREE.SphereGeometry(1.05, 20, 14),
+        new THREE.MeshBasicMaterial({
+          color: 0x4da3ff, transparent: true, opacity: 0.16,
+          depthWrite: false, side: THREE.DoubleSide,
+        }),
+      );
+      bubble.visible = false;
+      this.scene.add(bubble);
+
+      const shieldRing = new THREE.Mesh(
+        new THREE.TorusGeometry(1.08, 0.035, 8, 32),
+        new THREE.MeshBasicMaterial({
+          color: 0x9ccaff, transparent: true, opacity: 0.7,
+          blending: THREE.AdditiveBlending, depthWrite: false,
+        }),
+      );
+      shieldRing.rotation.x = Math.PI / 2;
+      shieldRing.visible = false;
+      this.scene.add(shieldRing);
+
+      const buffGlow = new THREE.Sprite(new THREE.SpriteMaterial({
+        map: this.glowTexture, color: 0xffffff, transparent: true, opacity: 0.45,
+        blending: THREE.AdditiveBlending, depthWrite: false,
+      }));
+      buffGlow.scale.set(3, 3, 1);
+      buffGlow.visible = false;
+      this.scene.add(buffGlow);
+
+      entry = { mesh, headGroup, head, glow, headShadow, bubble, shieldRing, buffGlow, color: null };
       this.snakes.set(id, entry);
     }
     if (entry.color !== color) {
@@ -544,6 +574,9 @@ export class Renderer3D {
     entry.headGroup.visible = false;
     entry.glow.visible = false;
     if (entry.headShadow) entry.headShadow.visible = false;
+    if (entry.bubble) entry.bubble.visible = false;
+    if (entry.shieldRing) entry.shieldRing.visible = false;
+    if (entry.buffGlow) entry.buffGlow.visible = false;
     if (entry.labelSprite) entry.labelSprite.visible = false;
   }
 
@@ -575,7 +608,7 @@ export class Renderer3D {
     entry.labelSprite.visible = true;
   }
 
-  applySnake(snake) {
+  applySnake(snake, now) {
     const segments = snake.segments;
     if (!snake.visible || !segments || segments.length === 0) {
       this.hideSnake(snake.id);
@@ -621,10 +654,39 @@ export class Renderer3D {
     entry.headGroup.position.set(headPos.x, 0.06, headPos.z);
     const dir = snake.dir || [1, 0];
     entry.headGroup.rotation.y = Math.atan2(dir[0], dir[1]);
-    entry.glow.visible = true;
+    entry.glow.visible = this.quality !== 'low';
     entry.glow.position.set(headPos.x, 0.12, headPos.z);
     entry.headShadow.visible = this.quality !== 'low';
     entry.headShadow.position.set(headPos.x, 0.014, headPos.z);
+
+    // 护盾罩子
+    const shieldActive = snake.shield || snake.shieldPhase;
+    entry.bubble.visible = !!shieldActive;
+    entry.shieldRing.visible = !!shieldActive;
+    if (shieldActive) {
+      const pulse = 1 + Math.sin(now / 180) * 0.08;
+      entry.bubble.position.set(headPos.x, 0.62, headPos.z);
+      entry.bubble.scale.set(pulse, pulse * 0.9, pulse);
+      entry.bubble.material.opacity = snake.shieldPhase
+        ? 0.1 + 0.14 * Math.abs(Math.sin(now / 60))
+        : 0.2;
+      entry.shieldRing.position.set(headPos.x, 0.7, headPos.z);
+      entry.shieldRing.rotation.z = now / 700;
+      entry.shieldRing.material.opacity = snake.shieldPhase
+        ? 0.4 + 0.4 * Math.abs(Math.sin(now / 60))
+        : 0.7;
+    }
+
+    // 增益光环：双倍金色 / 减速紫色
+    const auraColor = snake.doubleBuff ? '#ffd23f' : snake.slowBuff ? '#a04dff' : null;
+    entry.buffGlow.visible = !!auraColor && this.quality !== 'low';
+    if (auraColor) {
+      const auraPulse = 1 + Math.sin(now / 240) * 0.12;
+      entry.buffGlow.material.color.set(auraColor);
+      entry.buffGlow.position.set(headPos.x, 0.5, headPos.z);
+      entry.buffGlow.scale.set(3.2 * auraPulse, 3.2 * auraPulse, 1);
+    }
+
     this.applyLabel(entry, snake);
   }
 
@@ -684,6 +746,7 @@ export class Renderer3D {
       entry.glow.position.set(pos.x, bob, pos.z);
       entry.shadow.position.set(pos.x, 0.013, pos.z);
       const extras = this.quality !== 'low';
+      entry.glow.visible = extras;
       entry.shadow.visible = extras;
       entry.ring.visible = extras;
       entry.ring.position.set(pos.x, bob, pos.z);
@@ -733,7 +796,7 @@ export class Renderer3D {
     const count = Math.min(effects.particles.length, PARTICLE_CAP);
     for (let i = 0; i < count; i++) {
       const p = effects.particles[i];
-      const pos = this.worldPos(p.x - 0.5, p.y - 0.5);
+      const pos = this.worldPos(p.x, p.y);
       this.particlePositions[i * 3] = pos.x;
       this.particlePositions[i * 3 + 1] = p.z;
       this.particlePositions[i * 3 + 2] = pos.z;
@@ -764,7 +827,7 @@ export class Renderer3D {
     const seen = new Set();
     for (const snake of view.snakes) {
       seen.add(snake.id);
-      this.applySnake(snake);
+      this.applySnake(snake, now);
     }
     for (const id of this.snakes.keys()) {
       if (!seen.has(id)) this.hideSnake(id);
