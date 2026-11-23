@@ -197,6 +197,20 @@ async function main() {
     await sleep(400);
     await shot(cdp, 'shield-3d.png');
 
+    console.log('4.6 下边界跟随');
+    await evaluate(cdp, `(() => {
+      const g = window.__neonSnake3D.getGame();
+      const segs = g.body.segments;
+      for (let i = 0; i < segs.length; i++) {
+        segs[i].x = 22;
+        segs[i].y = 40 - i * 0.5;
+      }
+      g.body.heading = Math.PI / 2;
+      g.body.targetHeading = Math.PI / 2;
+    })()`);
+    await sleep(350);
+    await shot(cdp, 'edge-bottom-3d.png');
+
     console.log('5. 死亡与结算');
     await evaluate(cdp, 'window.__neonSnake3D.getGame().die("wall")');
     ok(await waitFor(cdp, '!document.getElementById("gameOverOverlay").classList.contains("hidden")', 5000), '结算面板弹出');

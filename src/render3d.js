@@ -324,6 +324,38 @@ export class Renderer3D {
     return distance;
   }
 
+  // 跟随模式：迭代求焦点上限，保证走到任意边缘时该边的墙仍在屏幕内
+  computeFollowClamp() {
+    const half = (this.grid || 24) / 2;
+    const elevation = this.elevationFor(this.aspect);
+    const depth = Math.sqrt(Math.max(0.02, 1 - elevation * elevation));
+    const distance = this.cameraDistance || 40;
+    const limit = 0.94;
+    const point = new THREE.Vector3();
+    const fits = (focusX, focusZ, targetX, targetZ) => {
+      this.camera.position.set(focusX, distance * elevation, focusZ + distance * depth);
+      this.camera.lookAt(focusX, 0, focusZ);
+      this.camera.updateMatrixWorld(true);
+      point.set(targetX, 0, targetZ).project(this.camera);
+      return Math.abs(point.x) <= limit && Math.abs(point.y) <= limit;
+    };
+
+    let clampZ = half;
+    for (let i = 0; i < 32; i++) {
+      if (fits(0, clampZ, 0, half)) break;
+      clampZ -= half / 32;
+      if (clampZ < 0) { clampZ = 0; break; }
+    }
+    let clampX = half;
+    for (let i = 0; i < 32; i++) {
+      if (fits(clampX, 0, half, 0)) break;
+      clampX -= half / 32;
+      if (clampX < 0) { clampX = 0; break; }
+    }
+    this.followClampX = clampX;
+    this.followClampZ = clampZ;
+  }
+
   refreshProjection() {
     const g = this.grid || 24;
     const portrait = this.aspect < 0.8;
@@ -341,6 +373,7 @@ export class Renderer3D {
       distance = this.fitBoardDistance(g / 2 + 0.2, elevation, distance);
     }
     this.cameraDistance = distance;
+    if (this.followMode) this.computeFollowClamp();
   }
 
   updateCamera(focusWorld, shake, now) {
@@ -353,8 +386,12 @@ export class Renderer3D {
       const half = (this.grid || 24) / 2;
       const vert = this.cameraDistance * tan;
       const horz = vert * this.aspect;
-      const clampX = Math.max(0, half - Math.min(half, horz * 0.92));
-      const clampZ = Math.max(0, half - Math.min(half, (vert / elevation) * 0.92));
+      const clampX = this.followClampX != null
+        ? this.followClampX
+        : Math.max(0, half - Math.min(half, horz * 0.92));
+      const clampZ = this.followClampZ != null
+        ? this.followClampZ
+        : Math.max(0, half - Math.min(half, (vert / elevation) * 0.92));
       targetX = Math.max(-clampX, Math.min(clampX, focusWorld.x));
       targetZ = Math.max(-clampZ, Math.min(clampZ, focusWorld.z));
       const dt = this.lastNow ? Math.min(0.1, Math.max(0, (now - this.lastNow) / 1000)) : 0.016;
